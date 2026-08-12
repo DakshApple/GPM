@@ -5,6 +5,7 @@ import { api } from '../services/db';
 export function AuthScreen({ onAuth }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -16,6 +17,12 @@ export function AuthScreen({ onAuth }) {
       if (!found) { setError("account not found."); setBusy(false); return; }
       if (found.password !== password) { setError("incorrect password."); setBusy(false); return; }
       
+      // If email is provided during login and it's different/new, save it to DB
+      if (email.trim() && email.trim() !== found.email) {
+        found.email = email.trim();
+        await api.upsertRow('gpm_accounts', found);
+      }
+
       // Store session
       localStorage.setItem("gpm:account", JSON.stringify(found));
       onAuth(found);
@@ -60,6 +67,7 @@ export function AuthScreen({ onAuth }) {
           <form onSubmit={submit} style={{ display:"flex", flexDirection:"column", gap:10 }}>
             <input value={username} onChange={e => setUsername(e.target.value)} required placeholder="username" autoComplete="username" style={{ width:"100%", boxSizing:"border-box" }} />
             <input type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="password" autoComplete="current-password" style={{ width:"100%", boxSizing:"border-box" }} />
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email (optional - to receive notifications)" autoComplete="email" style={{ width:"100%", boxSizing:"border-box" }} />
             {error && <div style={{ fontSize:12, padding:"8px 12px", borderRadius:6, background:"rgba(248,113,113,.1)", color:"var(--red)" }}>{error}</div>}
             <button type="submit" disabled={busy} className="btn btn-primary" style={{ width:"100%", justifyContent:"center", padding:"12px 14px", fontSize:14 }}>
               {busy ? "authenticating..." : "sign in"}
