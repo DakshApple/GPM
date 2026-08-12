@@ -68,8 +68,8 @@ export function ProjectsView({ projects, employees, users, tasks, onOpenProject,
                     </div>
                     <span style={{ color:"var(--text-2)" }}>{owner ? owner.name.split(" ")[0] : ""}</span>
                   </div>
-                  <span style={{ color: days<0?"var(--red)":days<=3?"var(--amber)":"var(--text-2)" }}>
-                    {p.status==="delivered"?"delivered":days<0?`${Math.abs(days)}d late`:`${days}d left`}
+                  <span style={{ color: p.isOngoing ? "var(--amber)" : days<0?"var(--red)":days<=3?"var(--amber)":"var(--text-2)" }}>
+                    {p.isOngoing ? "∞ ongoing" : p.status==="delivered"?"delivered":days<0?`${Math.abs(days)}d late`:`${days}d left`}
                   </span>
                 </div>
               </button>

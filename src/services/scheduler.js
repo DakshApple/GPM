@@ -11,8 +11,9 @@ export function runSchedulerV2({ projects, employees, tasks, modules, trigger, u
   tasks.filter(t => t.status !== "done").forEach(t => {
     const proj = active.find(p => p.id === t.projectId);
     if (!proj) return;
-    // task deadline beyond project deadline
-    if (t.deadline > proj.deadline) {
+    
+    // task deadline beyond project deadline (skip if ongoing)
+    if (!proj.isOngoing && t.deadline > proj.deadline) {
       suggestions.push({
         id: uid(), type: "deadline_breach", severity: "high",
         projectId: proj.id, projectName: proj.name, taskId: t.id, taskTitle: t.title,
@@ -21,6 +22,7 @@ export function runSchedulerV2({ projects, employees, tasks, modules, trigger, u
         status: "pending", createdAt: new Date().toISOString(),
       });
     }
+    
     // task deadline beyond its module deadline
     if (t.moduleId) {
       const mod = modules.find(m => m.id === t.moduleId);
@@ -36,10 +38,11 @@ export function runSchedulerV2({ projects, employees, tasks, modules, trigger, u
       }
     }
   });
-  // module deadline beyond project deadline
+
+  // module deadline beyond project deadline (skip if ongoing)
   modules.forEach(mod => {
     const proj = active.find(p => p.id === mod.projectId);
-    if (proj && mod.deadline > proj.deadline) {
+    if (proj && !proj.isOngoing && mod.deadline > proj.deadline) {
       suggestions.push({
         id: uid(), type: "module_overrun", severity: "high",
         projectId: proj.id, projectName: proj.name, moduleId: mod.id, moduleName: mod.name,
@@ -108,6 +111,8 @@ export function runSchedulerV2({ projects, employees, tasks, modules, trigger, u
   for (let i = 0; i < active.length; i++) {
     for (let j = i+1; j < active.length; j++) {
       const a = active[i], b = active[j];
+      if (a.isOngoing || b.isOngoing) continue; // Skip overlapping checks if one is ongoing (infinite timeline)
+      
       // check time overlap
       if (fromISO(a.deadline) < fromISO(b.startDate) || fromISO(b.deadline) < fromISO(a.startDate)) continue;
       const shared = a.memberIds.filter(m => b.memberIds.includes(m));
@@ -150,6 +155,7 @@ export function runSchedulerV2({ projects, employees, tasks, modules, trigger, u
 
   // ── CHECK 6: infeasibility — remaining work vs remaining time ──
   active.forEach(proj => {
+    if (proj.isOngoing) return; // Ongoing products have no deadline constraints
     const remaining = daysBetween(today(), proj.deadline);
     if (remaining < 0) return; // already overdue, separate concern
     const projTasks = tasks.filter(t => t.projectId === proj.id && t.status !== "done");
@@ -169,6 +175,7 @@ export function runSchedulerV2({ projects, employees, tasks, modules, trigger, u
 
   // ── CHECK 7: overdue projects ──
   active.forEach(proj => {
+    if (proj.isOngoing) return;
     if (isPast(proj.deadline)) {
       const overdueDays = daysBetween(proj.deadline, today());
       suggestions.push({

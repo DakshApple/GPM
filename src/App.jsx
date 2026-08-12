@@ -138,6 +138,13 @@ export default function App() {
     const n = allTasks.map(x => x.id===id ? updated : x);
     setAllTasks(n); runScheduler({ projects:allProjects, employees, tasks:n, modules, users });
   };
+  const updateTaskStatus = async (id, newStatus) => {
+    const t = allTasks.find(x => x.id === id); if(!t || t.status === newStatus) return;
+    const updated = {...t, status: newStatus};
+    await api.upsertRow('gpm_tasks', updated);
+    const n = allTasks.map(x => x.id===id ? updated : x);
+    setAllTasks(n); runScheduler({ projects:allProjects, employees, tasks:n, modules, users });
+  };
   
   const createModule = async (m) => { await api.upsertRow('gpm_modules', m); const n = [...modules, m]; setModules(n); runScheduler({ projects:allProjects, employees, tasks:allTasks, modules:n, users }); };
   const updateModuleObj = async (m) => { await api.upsertRow('gpm_modules', m); const n = modules.map(x => x.id===m.id?m:x); setModules(n); runScheduler({ projects:allProjects, employees, tasks:allTasks, modules:n, users }); };
@@ -264,7 +271,7 @@ export default function App() {
       {view === "calendar" && hasFeature("calendar") && <CalendarView projects={projects} tasks={tasks} onOpenProject={setOpenProjectId} openTaskById={(id) => setTaskModalInitial(tasks.find(x=>x.id===id))} />}
       {view === "timeline" && hasFeature("timeline") && <TimelineView projects={projects} tasks={tasks} onOpenProject={setOpenProjectId} />}
       {view === "projects" && hasFeature("projects") && <ProjectsView projects={projects} employees={employees} users={users} tasks={tasks} onOpenProject={setOpenProjectId} onNewProject={isAdmin ? () => setShowNP(true) : undefined} />}
-      {view === "tasks" && hasFeature("tasks") && <TasksView tasks={tasks} projects={projects} employees={employees} users={users} currentUser={user} openTaskById={(id) => setTaskModalInitial(tasks.find(x=>x.id===id))} onNewTask={setTaskModalInitial} onAdvanceTask={advanceTask} />}
+      {view === "tasks" && hasFeature("tasks") && <TasksView tasks={tasks} projects={projects} employees={employees} users={users} currentUser={user} openTaskById={(id) => setTaskModalInitial(tasks.find(x=>x.id===id))} onNewTask={setTaskModalInitial} onAdvanceTask={advanceTask} onUpdateTaskStatus={updateTaskStatus} />}
       {view === "team" && hasFeature("team_view") && <TeamView users={users} employees={employees} projects={projects} tasks={tasks} onNewEmployee={isAdmin ? () => setShowNE(true) : undefined} />}
       {view === "ai" && hasFeature("ai") && <SuggestionsView suggestions={suggestions} applySuggestion={applySuggestion} dismissSuggestion={dismissSuggestion} />}
       {view === "tickets" && hasFeature("tickets") && <TicketsView tickets={tickets} projects={projects} onResolve={resolveTicket} onConvertToTask={(tk) => { setTaskModalInitial({ projectId: tk.projectId, title: tk.message, priority: tk.priority, deadline: tk.deadline, clientTitle: tk.message, isClientVisible: true }); }} />}

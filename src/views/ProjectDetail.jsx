@@ -83,7 +83,7 @@ export function ProjectDetail({ project, projects, employees, users, updates, ta
               <Field label="description" value={project.description || "—"} multiline />
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
                 <Field label="starts" value={fmtDateLong(project.startDate)} mono />
-                <Field label="deadline" value={fmtDateLong(project.deadline)} mono accent={isPast(project.deadline)?"red":null} />
+                <Field label="deadline" value={project.isOngoing ? "∞ Ongoing" : fmtDateLong(project.deadline)} mono accent={!project.isOngoing && isPast(project.deadline) ? "red" : null} />
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:16 }}>
                 <Field label="estimated" value={`${project.estimatedDays} days`} mono />

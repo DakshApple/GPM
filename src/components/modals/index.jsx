@@ -16,9 +16,18 @@ export function ProjectEditor({ draft, setDraft, employees, users }) {
       <div><label className="fl">description</label><textarea value={draft.description||""} onChange={e => set("description",e.target.value)} rows={2} style={{ width:"100%", marginTop:4, boxSizing:"border-box", resize:"none" }} /></div>
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
         <div><label className="fl">start date</label><input type="date" value={draft.startDate} onChange={e => set("startDate",e.target.value)} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }} /></div>
-        <div><label className="fl">deadline</label><input type="date" value={draft.deadline} onChange={e => set("deadline",e.target.value)} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }} /></div>
+        
+        {!draft.isOngoing ? (
+          <div><label className="fl">deadline</label><input type="date" value={draft.deadline||""} onChange={e => set("deadline",e.target.value)} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }} /></div>
+        ) : (
+          <div><label className="fl">deadline</label><div style={{ marginTop:4, padding:"8px 12px", background:"var(--surface-2)", borderRadius:6, color:"var(--text-2)", fontSize:13, border:"1px solid var(--border)" }}>∞ Ongoing</div></div>
+        )}
       </div>
-      <div><label className="fl">client portal password (optional)</label><input type="text" value={draft.portalPassword||""} onChange={e => set("portalPassword",e.target.value)} placeholder="give this to client to login" style={{ width:"100%", marginTop:4, boxSizing:"border-box" }} /></div>
+      <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:4 }}>
+        <input type="checkbox" checked={draft.isOngoing||false} onChange={e => set("isOngoing",e.target.checked)} id="cb_ongoing" />
+        <label htmlFor="cb_ongoing" style={{ fontSize:13, color:"var(--text-2)" }}>Continuous Product (No Deadline)</label>
+      </div>
+      <div><label className="fl" style={{ marginTop:12 }}>client portal password (optional)</label><input type="text" value={draft.portalPassword||""} onChange={e => set("portalPassword",e.target.value)} placeholder="give this to client to login" style={{ width:"100%", marginTop:4, boxSizing:"border-box" }} /></div>
 
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12 }}>
         <div><label className="fl">est. days</label><input type="number" min={1} value={draft.estimatedDays} onChange={e => set("estimatedDays",parseInt(e.target.value)||1)} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }} /></div>
@@ -60,6 +69,7 @@ export function NewProjectModal({ open, onClose, employees, users, onCreate }) {
       ownerId: users[0]?.id || "", memberIds:[],
       startDate:today(), deadline:toISO(addDays(new Date(),14)),
       estimatedDays:10, priority:"medium", status:"planning", color:"amber",
+      isOngoing: false
     });
   }, [open, users]);
   
