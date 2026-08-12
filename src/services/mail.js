@@ -1,27 +1,25 @@
-// GPM Mailing Service using Web3Forms
+// GPM Mailing Service using Resend (via Vercel Serverless Function)
 // All admin notifications go to daksh@genartml.com
 
-const WEB3FORMS_ACCESS_KEY = "17203923-0d98-420b-9da6-6389861baaf3";
 const ADMIN_EMAIL = "daksh@genartml.com";
 
-const sendEmail = async (subject, message, replyToEmail) => {
-  console.log(`[MAIL] → ${replyToEmail} | ${subject}`);
+const sendEmail = async (subject, htmlMessage, recipientEmail) => {
+  console.log(`[MAIL] → ${recipientEmail} | ${subject}`);
   
   try {
-    const res = await fetch("https://api.web3forms.com/submit", {
+    const res = await fetch("/api/sendEmail", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({
-        access_key: WEB3FORMS_ACCESS_KEY,
+        to: recipientEmail,
         subject: subject,
-        from_name: "GPM Project Manager",
-        email: replyToEmail,
-        message: message,
+        html: htmlMessage,
       })
     });
+    
     const data = await res.json();
-    if (data.success) {
-      console.log(`[MAIL] ✅ Sent successfully`);
+    if (res.ok) {
+      console.log(`[MAIL] ✅ Sent successfully via Resend API`);
     } else {
       console.error(`[MAIL] ❌ Failed:`, data);
     }
@@ -34,32 +32,95 @@ export const mail = {
   // Client submits a ticket → notify admin
   async sendTicketAcknowledgement(clientEmail, ticketId, ticketMessage, projectName) {
     const subject = `Request Received: ${ticketId} - ${projectName}`;
-    const message = `Hello,\n\nWe have received your request for the project "${projectName}".\n\nRequest ID: ${ticketId}\nDetails: ${ticketMessage}\n\nOur team has been notified and will review it shortly.\n\nThank you,\nThe GPM Team`;
-    await sendEmail(subject, message, clientEmail);
+    const html = `
+      <div style="font-family: sans-serif; color: #333;">
+        <h2>Request Received</h2>
+        <p>Hello,</p>
+        <p>We have successfully received your request for the project <strong>"${projectName}"</strong>.</p>
+        <div style="background: #f4f4f4; padding: 16px; border-radius: 8px; margin: 16px 0;">
+          <p><strong>Request ID:</strong> ${ticketId}</p>
+          <p><strong>Details:</strong><br/>${ticketMessage}</p>
+        </div>
+        <p>Our team has been notified and will review it shortly. You can track this in your Client Portal.</p>
+        <p>Thank you,<br/><strong>The GPM Team</strong></p>
+      </div>
+    `;
+    await sendEmail(subject, html, clientEmail);
   },
 
   // Admin resolves a ticket → notify client
   async sendTicketResolved(clientEmail, ticketId, ticketMessage, projectName) {
     const subject = `Resolved: ${ticketId} - ${projectName}`;
-    const message = `Hello,\n\nGreat news! Your request for the project "${projectName}" has been resolved.\n\nRequest ID: ${ticketId}\nDetails: ${ticketMessage}\n\nThank you for your patience.\n\nThe GPM Team`;
-    await sendEmail(subject, message, clientEmail);
+    const html = `
+      <div style="font-family: sans-serif; color: #333;">
+        <h2>Request Resolved 🎉</h2>
+        <p>Hello,</p>
+        <p>Great news! Your request for the project <strong>"${projectName}"</strong> has been resolved by our team.</p>
+        <div style="background: #e6fffa; padding: 16px; border-radius: 8px; border: 1px solid #b2f5ea; margin: 16px 0;">
+          <p><strong>Request ID:</strong> ${ticketId}</p>
+          <p><strong>Details:</strong><br/>${ticketMessage}</p>
+        </div>
+        <p>Thank you for your patience!</p>
+        <p><strong>The GPM Team</strong></p>
+      </div>
+    `;
+    await sendEmail(subject, html, clientEmail);
   },
 
   // Client submits a ticket → notify admin team at daksh@genartml.com
   async sendTeamNotification(ticketId, ticketMessage, projectName, priority, deadline) {
     const subject = `[NEW CLIENT REQUEST] ${projectName} - ${ticketId}`;
-    const message = `🔔 New Client Request\n\nProject: ${projectName}\nRequest ID: ${ticketId}\nPriority: ${priority}\nDeadline: ${deadline || 'Not specified'}\n\nClient Message:\n"${ticketMessage}"\n\nPlease review it in the GPM admin dashboard.`;
-    await sendEmail(subject, message, ADMIN_EMAIL);
+    const html = `
+      <div style="font-family: sans-serif; color: #333;">
+        <h2 style="color: #e53e3e;">🔔 New Client Request</h2>
+        <p>A new ticket has been submitted by the client.</p>
+        <table style="width: 100%; max-width: 600px; border-collapse: collapse; margin-top: 16px;">
+          <tr>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Project:</strong></td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">${projectName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Priority:</strong></td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">
+              <span style="background: #feebc8; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">${priority.toUpperCase()}</span>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Deadline:</strong></td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">${deadline || 'Not specified'}</td>
+          </tr>
+        </table>
+        <div style="background: #f9f9f9; padding: 16px; border-left: 4px solid #cbd5e0; margin: 16px 0;">
+          <strong>Message from Client:</strong><br/><br/>
+          <em>"${ticketMessage}"</em>
+        </div>
+        <p>Please review and assign it in the GPM admin dashboard.</p>
+      </div>
+    `;
+    await sendEmail(subject, html, ADMIN_EMAIL);
   },
   
   async sendWelcomeEmail(email, accountName) {
     const subject = `Welcome to GPM, ${accountName}!`;
-    const message = `Your GPM account has been successfully created.\n\nYou can now log in to the dashboard.`;
-    await sendEmail(subject, message, email);
+    const html = `
+      <div style="font-family: sans-serif; color: #333; text-align: center;">
+        <h2>Welcome to GPM!</h2>
+        <p>Hi ${accountName},</p>
+        <p>Your GPM account has been successfully created by your administrator.</p>
+        <p>You can now log in to the dashboard to see your assigned projects and tasks.</p>
+      </div>
+    `;
+    await sendEmail(subject, html, email);
   },
 
   // Notify specific team member assigned to a project
   async sendProjectMemberNotification(memberEmail, subject, message) {
-    await sendEmail(subject, message, memberEmail);
+    const html = `
+      <div style="font-family: sans-serif; color: #333;">
+        <h3>Project Update</h3>
+        <p>${message}</p>
+      </div>
+    `;
+    await sendEmail(subject, html, memberEmail);
   }
 };
