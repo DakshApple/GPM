@@ -12,3 +12,7 @@ ALTER TABLE public.gpm_modules ADD COLUMN IF NOT EXISTS "order" NUMERIC;
 
 ALTER TABLE public.gpm_updates ADD COLUMN IF NOT EXISTS note TEXT;
 ALTER TABLE public.gpm_updates ADD COLUMN IF NOT EXISTS requested_deadline TEXT;
+
+-- Ticket updates
+ALTER TABLE public.gpm_tickets ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'medium';
+ALTER TABLE public.gpm_tickets ADD COLUMN IF NOT EXISTS deadline TEXT;

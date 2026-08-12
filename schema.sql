@@ -71,6 +71,8 @@ CREATE TABLE public.gpm_tickets (
     project_id TEXT REFERENCES public.gpm_projects(id) ON DELETE CASCADE,
     message TEXT NOT NULL,
     status TEXT DEFAULT 'open',
+    priority TEXT DEFAULT 'medium',
+    deadline TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

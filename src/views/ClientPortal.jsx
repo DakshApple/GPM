@@ -53,7 +53,7 @@ export function ClientPortal({ project, onLogout }) {
   const [tasks, setTasks] = useState([]);
   const [modules, setModules] = useState([]);
   const [tickets, setTickets] = useState([]);
-  const [ticketDraft, setTicketDraft] = useState("");
+  const [ticketDraft, setTicketDraft] = useState({ message:"", priority:"medium", deadline:"" });
   const [showTicket, setShowTicket] = useState(false);
 
   useEffect(() => {
@@ -68,11 +68,11 @@ export function ClientPortal({ project, onLogout }) {
   }, [project.id]);
 
   const submitTicket = async () => {
-    if (!ticketDraft.trim()) return;
-    const tk = { id: uid(), projectId: project.id, message: ticketDraft.trim(), status: 'open', createdAt: new Date().toISOString() };
+    if (!ticketDraft.message.trim()) return;
+    const tk = { id: uid(), projectId: project.id, message: ticketDraft.message.trim(), priority: ticketDraft.priority, deadline: ticketDraft.deadline || null, status: 'open', createdAt: new Date().toISOString() };
     await api.upsertRow('gpm_tickets', tk);
     setTickets([...tickets, tk]);
-    setTicketDraft("");
+    setTicketDraft({ message:"", priority:"medium", deadline:"" });
     setShowTicket(false);
   };
 
@@ -143,19 +143,59 @@ export function ClientPortal({ project, onLogout }) {
             {tasks.length === 0 ? (
               <div style={{ padding:48, textAlign:"center", border:"1px dashed #2A2A2E", borderRadius:12, color:"#666" }}>No milestones visible yet.</div>
             ) : (
-              <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-                {tasks.map(t => (
-                  <div key={t.id} style={{ padding:20, borderRadius:12, background:"#141415", border:"1px solid #2A2A2E", display:"flex", gap:16, opacity: t.status==="done"?1:0.6 }}>
-                    <div style={{ paddingTop:2 }}>
-                      {t.status==="done" ? <CheckCircle2 style={{ width:20, height:20, color:"#A3E635" }} /> : <div style={{ width:18, height:18, borderRadius:9, border:"2px solid #555" }} />}
-                    </div>
-                    <div>
-                      <div style={{ fontSize:16, fontWeight:500, color:"#fff", marginBottom:6 }}>{t.clientTitle || t.title}</div>
-                      <div style={{ fontSize:14, color:"#888", lineHeight:1.5 }}>{t.clientDescription || "Update in progress..."}</div>
-                      {t.status === "done" && <div style={{ marginTop:12, display:"inline-block", fontSize:11, padding:"2px 8px", background:"rgba(163,230,53,.1)", color:"#A3E635", borderRadius:4 }}>Completed</div>}
+              <div style={{ display:"flex", flexDirection:"column", gap:32 }}>
+                
+                {tasks.filter(t => t.status === "in_progress" || t.status === "review").length > 0 && (
+                  <div>
+                    <h4 style={{ fontSize:14, color:"#4A9EFF", fontWeight:500, marginBottom:12, textTransform:"uppercase", letterSpacing:"0.05em" }}>Currently in Progress</h4>
+                    <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+                      {tasks.filter(t => t.status === "in_progress" || t.status === "review").map(t => (
+                        <div key={t.id} style={{ padding:20, borderRadius:12, background:"rgba(74,158,255,.05)", border:"1px solid rgba(74,158,255,.3)", display:"flex", gap:16 }}>
+                          <div style={{ paddingTop:2 }}><div style={{ width:18, height:18, borderRadius:9, border:"2px solid #4A9EFF", borderTopColor:"transparent", animation:"spin 1s linear infinite" }} /></div>
+                          <div>
+                            <div style={{ fontSize:16, fontWeight:500, color:"#fff", marginBottom:6 }}>{t.clientTitle || t.title}</div>
+                            <div style={{ fontSize:14, color:"#888", lineHeight:1.5 }}>{t.clientDescription || "Update in progress..."}</div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                ))}
+                )}
+
+                {tasks.filter(t => t.status === "todo").length > 0 && (
+                  <div>
+                    <h4 style={{ fontSize:14, color:"#F5A623", fontWeight:500, marginBottom:12, textTransform:"uppercase", letterSpacing:"0.05em" }}>Future Work</h4>
+                    <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+                      {tasks.filter(t => t.status === "todo").map(t => (
+                        <div key={t.id} style={{ padding:20, borderRadius:12, background:"#141415", border:"1px dashed #2A2A2E", display:"flex", gap:16, opacity: 0.7 }}>
+                          <div style={{ paddingTop:2 }}><div style={{ width:18, height:18, borderRadius:9, border:"2px solid #555" }} /></div>
+                          <div>
+                            <div style={{ fontSize:16, fontWeight:500, color:"#ccc", marginBottom:6 }}>{t.clientTitle || t.title}</div>
+                            <div style={{ fontSize:14, color:"#666", lineHeight:1.5 }}>{t.clientDescription || "Planned."}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {doneTasks.length > 0 && (
+                  <div>
+                    <h4 style={{ fontSize:14, color:"#A3E635", fontWeight:500, marginBottom:12, textTransform:"uppercase", letterSpacing:"0.05em" }}>Completed</h4>
+                    <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+                      {doneTasks.map(t => (
+                        <div key={t.id} style={{ padding:20, borderRadius:12, background:"rgba(163,230,53,.05)", border:"1px solid rgba(163,230,53,.2)", display:"flex", gap:16, opacity: 0.8 }}>
+                          <div style={{ paddingTop:2 }}><CheckCircle2 style={{ width:20, height:20, color:"#A3E635" }} /></div>
+                          <div>
+                            <div style={{ fontSize:16, fontWeight:500, color:"#fff", marginBottom:6, textDecoration:"line-through" }}>{t.clientTitle || t.title}</div>
+                            <div style={{ fontSize:14, color:"#888", lineHeight:1.5 }}>{t.clientDescription || "Completed."}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
               </div>
             )}
           </div>
@@ -187,10 +227,24 @@ export function ClientPortal({ project, onLogout }) {
           <div className="scale-in" style={{ width:"100%", maxWidth:480, borderRadius:16, background:"#141415", border:"1px solid #2A2A2E", padding:32 }} onClick={e => e.stopPropagation()}>
             <h3 className="font-display" style={{ fontSize:24, fontWeight:500, color:"#fff", margin:0, marginBottom:8 }}>Request Change</h3>
             <p style={{ fontSize:14, color:"#888", marginBottom:24 }}>Describe what you need. This will alert the engineering team directly.</p>
-            <textarea value={ticketDraft} onChange={e => setTicketDraft(e.target.value)} rows={4} placeholder="e.g. Could we update the hero image on the home page?" style={{ width:"100%", padding:12, borderRadius:8, background:"#0A0A0B", border:"1px solid #333", color:"#fff", resize:"none", marginBottom:24, boxSizing:"border-box" }} autoFocus />
+            <textarea value={ticketDraft.message} onChange={e => setTicketDraft({...ticketDraft, message:e.target.value})} rows={4} placeholder="e.g. Could we update the hero image on the home page?" style={{ width:"100%", padding:12, borderRadius:8, background:"#0A0A0B", border:"1px solid #333", color:"#fff", resize:"none", marginBottom:16, boxSizing:"border-box" }} autoFocus />
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:24 }}>
+              <div>
+                <label style={{ display:"block", fontSize:12, color:"#888", marginBottom:4 }}>Priority</label>
+                <select value={ticketDraft.priority} onChange={e => setTicketDraft({...ticketDraft, priority:e.target.value})} style={{ width:"100%", padding:10, borderRadius:8, background:"#0A0A0B", border:"1px solid #333", color:"#fff", boxSizing:"border-box" }}>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ display:"block", fontSize:12, color:"#888", marginBottom:4 }}>Deadline (Optional)</label>
+                <input type="date" value={ticketDraft.deadline} onChange={e => setTicketDraft({...ticketDraft, deadline:e.target.value})} style={{ width:"100%", padding:10, borderRadius:8, background:"#0A0A0B", border:"1px solid #333", color:"#fff", boxSizing:"border-box" }} />
+              </div>
+            </div>
             <div style={{ display:"flex", justifyContent:"flex-end", gap:12 }}>
               <button onClick={() => setShowTicket(false)} style={{ padding:"10px 16px", borderRadius:8, background:"transparent", border:"none", color:"#888", cursor:"pointer" }}>Cancel</button>
-              <button onClick={submitTicket} disabled={!ticketDraft.trim()} className="btn" style={{ background:"#fff", color:"#000", fontWeight:500 }}>Submit Request</button>
+              <button onClick={submitTicket} disabled={!ticketDraft.message.trim()} className="btn" style={{ background:"#fff", color:"#000", fontWeight:500 }}>Submit Request</button>
             </div>
           </div>
         </div>
@@ -198,3 +252,4 @@ export function ClientPortal({ project, onLogout }) {
     </div>
   );
 }
+

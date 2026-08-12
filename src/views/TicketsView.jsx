@@ -28,6 +28,12 @@ export function TicketsView({ tickets, projects, onResolve, onConvertToTask }) {
                       </div>
                       <span className="font-mono" style={{ fontSize:10, color:"var(--text-3)" }}>{new Date(tk.createdAt).toLocaleDateString()}</span>
                     </div>
+                    <div style={{ display:"flex", gap:8, marginTop:12 }}>
+                      <span style={{ fontSize:10, padding:"2px 8px", borderRadius:4, textTransform:"capitalize", background: tk.priority==="high"?"rgba(248,113,113,.15)":tk.priority==="low"?"rgba(163,230,53,.15)":"rgba(245,166,35,.15)", color: tk.priority==="high"?"var(--red)":tk.priority==="low"?"var(--green)":"var(--amber)" }}>
+                        {tk.priority} Priority
+                      </span>
+                      {tk.deadline && <span className="font-mono" style={{ fontSize:10, padding:"2px 8px", borderRadius:4, background:"var(--surface-3)", color:"var(--text-2)" }}>Deadline: {new Date(tk.deadline).toLocaleDateString()}</span>}
+                    </div>
                     <div style={{ display:"flex", gap:8, marginTop:16 }}>
                       <button onClick={() => onConvertToTask(tk)} className="btn btn-primary" style={{ gap:6 }}><ArrowRight style={{width:14,height:14}}/> convert to task</button>
                       <button onClick={() => onResolve(tk.id)} className="btn btn-secondary" style={{ gap:6 }}><CheckCircle2 style={{width:14,height:14}}/> mark resolved</button>
