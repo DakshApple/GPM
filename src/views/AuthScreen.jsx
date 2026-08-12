@@ -38,8 +38,7 @@ export function AuthScreen({ onAuth }) {
     <div style={{ minHeight:"100vh", display:"flex", background:"var(--bg)" }}>
       <div className="lg-left" style={{ display:"none", width:"50%", flexDirection:"column", justifyContent:"space-between", padding:48, borderRight:"1px solid var(--border)" }}>
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-          <div className="font-display" style={{ width:32, height:32, borderRadius:6, display:"flex", alignItems:"center", justifyContent:"center", background:"var(--amber)", color:"#1A0F00", fontWeight:700, fontSize:14 }}>G</div>
-          <span className="font-display" style={{ fontWeight:600, fontSize:14 }}>GPM</span>
+          <img src="/genartml-logo.png" alt="Genartml" style={{ height: 28, objectFit: "contain" }} />
         </div>
         <div>
           <h1 className="font-display" style={{ fontSize:48, lineHeight:1.08, fontWeight:600, letterSpacing:"-0.02em", marginBottom:24 }}>
@@ -59,8 +58,7 @@ export function AuthScreen({ onAuth }) {
         <div style={{ width:"100%", maxWidth:380 }}>
           <div style={{ marginBottom:32 }}>
             <div className="lg-hide" style={{ display:"flex", alignItems:"center", gap:8, marginBottom:16 }}>
-              <div className="font-display" style={{ width:28, height:28, borderRadius:6, display:"flex", alignItems:"center", justifyContent:"center", background:"var(--amber)", color:"#1A0F00", fontWeight:700, fontSize:12 }}>G</div>
-              <span className="font-display" style={{ fontWeight:600, fontSize:13 }}>GPM</span>
+              <img src="/genartml-logo.png" alt="Genartml" style={{ height: 24, objectFit: "contain" }} />
             </div>
             <h2 className="font-display" style={{ fontSize:22, fontWeight:600, marginBottom:4 }}>welcome back</h2>
             <p style={{ fontSize:13, color:"var(--text-2)" }}>sign in to genartml project manager.</p>

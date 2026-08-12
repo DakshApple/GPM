@@ -38,8 +38,7 @@ export function ClientLogin({ onLogin }) {
     <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"#0A0A0B" }}>
       <div className="fade-in" style={{ width:"100%", maxWidth:400, padding:32 }}>
         <div style={{ display:"flex", alignItems:"center", gap:8, justifyContent:"center", marginBottom:32 }}>
-          <div className="font-display" style={{ width:32, height:32, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", background:"#F5A623", color:"#1A0F00", fontWeight:700, fontSize:14 }}>G</div>
-          <span className="font-display" style={{ fontWeight:600, fontSize:16, color:"#fff" }}>GPM Client Portal</span>
+          <img src="/genartml-logo.png" alt="Genartml" style={{ height: 28, objectFit: "contain" }} />
         </div>
         <form onSubmit={submit} style={{ display:"flex", flexDirection:"column", gap:12, background:"#141415", padding:24, borderRadius:12, border:"1px solid #2A2A2E" }}>
           <h2 className="font-display" style={{ fontSize:18, fontWeight:500, color:"#fff", margin:0, marginBottom:8 }}>Welcome Back</h2>
@@ -130,7 +129,7 @@ export function ClientPortal({ project, onLogout }) {
       {/* Navbar */}
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"20px 48px", borderBottom:"1px solid #1F1F22", background:"rgba(10,10,11,0.8)", backdropFilter:"blur(12px)", position:"sticky", top:0, zIndex:10 }}>
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-          <div className="font-display" style={{ width:32, height:32, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", background:"#F5A623", color:"#1A0F00", fontWeight:700, fontSize:14 }}>G</div>
+          <img src="/genartml-logo.png" alt="Genartml" style={{ height: 24, objectFit: "contain" }} />
           <div>
             <div className="font-display" style={{ fontWeight:600, fontSize:15 }}>{project.client}</div>
             <div style={{ fontSize:11, color:"#888" }}>Client Portal</div>
