@@ -133,7 +133,7 @@ export function TasksView({ tasks, projects, employees, users, currentUser, open
                                     {...provided.draggableProps}
                                     {...provided.dragHandleProps}
                                     style={{
-                                      width:"100%", textAlign:"left", padding:12, borderRadius:6, 
+                                      boxSizing:"border-box", textAlign:"left", padding:12, borderRadius:6, 
                                       background: snapshot.isDragging ? "var(--surface-3)" : "var(--surface-2)", 
                                       border:`1px solid ${snapshot.isDragging ? "var(--amber)" : "var(--border)"}`, 
                                       cursor:"grab", color:"var(--text)", ...provided.draggableProps.style,
