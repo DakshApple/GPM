@@ -4,6 +4,14 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
+  // Simple origin check (only allow requests from our frontend)
+  const host = req.headers.host || '';
+  // Vercel apps typically have vercel.app in their host, or localhost for testing
+  // In production, we ensure it's not being curled without a host header
+  if (!host.includes('localhost') && !host.includes('vercel.app') && !host.includes('genartml.com')) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
   if (!RESEND_API_KEY) {

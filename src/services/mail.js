@@ -1,9 +1,8 @@
 // GPM Mailing Service using Resend (via Vercel Serverless Function)
-// All admin notifications go to daksh@genartml.com
-
-const ADMIN_EMAIL = "daksh@genartml.com";
+import { api } from './db';
 
 const sendEmail = async (subject, htmlMessage, recipientEmail) => {
+  if (!recipientEmail) return;
   console.log(`[MAIL] → ${recipientEmail} | ${subject}`);
   
   try {
@@ -19,9 +18,9 @@ const sendEmail = async (subject, htmlMessage, recipientEmail) => {
     
     const data = await res.json();
     if (res.ok) {
-      console.log(`[MAIL] ✅ Sent successfully via Resend API`);
+      console.log(`[MAIL] ✅ Sent successfully via Resend API to ${recipientEmail}`);
     } else {
-      console.error(`[MAIL] ❌ Failed:`, data);
+      console.error(`[MAIL] ❌ Failed to ${recipientEmail}:`, data);
     }
   } catch (err) {
     console.error("[MAIL] ❌ Network error:", err);
@@ -67,7 +66,7 @@ export const mail = {
     await sendEmail(subject, html, clientEmail);
   },
 
-  // Client submits a ticket → notify admin team at daksh@genartml.com
+  // Client submits a ticket → notify all admins who have emails configured
   async sendTeamNotification(ticketId, ticketMessage, projectName, priority, deadline) {
     const subject = `[NEW CLIENT REQUEST] ${projectName} - ${ticketId}`;
     const html = `
@@ -97,7 +96,17 @@ export const mail = {
         <p>Please review and assign it in the GPM admin dashboard.</p>
       </div>
     `;
-    await sendEmail(subject, html, ADMIN_EMAIL);
+
+    // Fetch all admins with emails
+    try {
+      const accounts = await api.getTable('gpm_accounts');
+      const admins = accounts.filter(a => a.role === 'admin' && a.email);
+      for (const admin of admins) {
+        await sendEmail(subject, html, admin.email);
+      }
+    } catch(e) {
+      console.error("Failed to fetch admins for email notification", e);
+    }
   },
   
   async sendWelcomeEmail(email, accountName) {
