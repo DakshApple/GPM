@@ -50,6 +50,11 @@ export function ClientLogin({ onLogin }) {
             {busy ? "Authenticating..." : "View Project"}
           </button>
         </form>
+        <div style={{ marginTop:16, textAlign:"center" }}>
+          <button type="button" onClick={() => window.location.hash = ""} style={{ color:"#888", background:"none", border:"none", cursor:"pointer", fontSize:13, display:"flex", alignItems:"center", gap:6, margin:"0 auto" }}>
+             team login <ArrowRight style={{width:12,height:12}} />
+          </button>
+        </div>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, marginTop:24, color:"#666" }}>
           <Shield style={{ width:14, height:14 }} />
           <span style={{ fontSize:11 }}>Secure client access</span>
