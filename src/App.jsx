@@ -13,6 +13,8 @@ import { TasksView } from './views/TasksView';
 import { TeamView, SuggestionsView } from './views/index'; // The file I just created
 import { TicketsView } from './views/TicketsView';
 import { store } from './services/storage';
+import { suggestTaskBreakdown } from './services/heuristics';
+import { mail } from './services/mail';
 import { supabaseAuth } from './services/auth';
 import { runSchedulerV2 } from './services/scheduler';
 import { KEYS, NEXT_STATUS } from './utils/constants';
@@ -193,7 +195,7 @@ export default function App() {
       {view === "tasks" && <TasksView tasks={tasks} projects={projects} employees={employees} users={users} currentUser={user} openTaskById={(id) => setTaskModalInitial(tasks.find(x=>x.id===id))} onNewTask={setTaskModalInitial} onAdvanceTask={advanceTask} />}
       {view === "team" && <TeamView users={users} employees={employees} projects={projects} tasks={tasks} onNewEmployee={() => setShowNE(true)} />}
       {view === "ai" && <SuggestionsView suggestions={suggestions} applySuggestion={applySuggestion} dismissSuggestion={dismissSuggestion} />}
-      {view === "tickets" && <TicketsView tickets={tickets} projects={projects} onResolve={async (id) => { const tk = tickets.find(x=>x.id===id); if(tk){ await api.upsertRow('gpm_tickets', {...tk, status:'resolved'}); setTickets(tickets.map(x=>x.id===id?{...tk,status:'resolved'}:x)); } }} onConvertToTask={(tk) => { setTaskModalInitial({ projectId: tk.projectId, title: tk.message, priority: tk.priority, deadline: tk.deadline, clientTitle: tk.message, isClientVisible: true }); }} />}
+      {view === "tickets" && <TicketsView tickets={tickets} projects={projects} onResolve={async (id) => { const tk = tickets.find(x=>x.id===id); if(tk){ await api.upsertRow('gpm_tickets', {...tk, status:'resolved'}); setTickets(tickets.map(x=>x.id===id?{...tk,status:'resolved'}:x)); const proj = projects.find(p=>p.id===tk.projectId); if (proj && proj.clientEmail) { mail.sendTicketResolved(proj.clientEmail, tk.id, tk.message, proj.name); } } }} onConvertToTask={(tk) => { setTaskModalInitial({ projectId: tk.projectId, title: tk.message, priority: tk.priority, deadline: tk.deadline, clientTitle: tk.message, isClientVisible: true }); }} />}
 
       {openProjectId && <ProjectDetail project={projects.find(p=>p.id===openProjectId)} projects={projects} employees={employees} users={users} updates={updates} tasks={tasks} modules={modules} onClose={()=>setOpenProjectId(null)} onSave={updateProject} onDelete={deleteProject} onAddUpdate={addUpdate} onMarkDelivered={markProjectDelivered} onCreateTask={createTask} onEditTask={updateTask} onAdvanceTask={advanceTask} onDeleteTask={deleteTask} onCreateModule={createModule} onUpdateModule={updateModuleObj} onDeleteModule={deleteModule} />}
 

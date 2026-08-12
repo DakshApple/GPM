@@ -31,7 +31,8 @@ CREATE TABLE public.gpm_projects (
     color TEXT,
     type TEXT,
     member_ids JSONB,
-    portal_password TEXT
+    portal_password TEXT,
+    client_email TEXT
 );
 
 CREATE TABLE public.gpm_modules (

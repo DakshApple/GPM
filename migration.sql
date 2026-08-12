@@ -17,4 +17,8 @@ ALTER TABLE public.gpm_updates ADD COLUMN IF NOT EXISTS requested_deadline TEXT;
 ALTER TABLE public.gpm_tickets ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'medium';
 ALTER TABLE public.gpm_tickets ADD COLUMN IF NOT EXISTS deadline TEXT;
 ALTER TABLE public.gpm_tickets ADD COLUMN IF NOT EXISTS is_edited BOOLEAN DEFAULT false;
+
+-- Email updates
+ALTER TABLE public.gpm_projects ADD COLUMN IF NOT EXISTS client_email TEXT;
+
 NOTIFY pgrst, 'reload schema';

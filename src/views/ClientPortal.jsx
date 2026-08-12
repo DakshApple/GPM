@@ -3,8 +3,10 @@ import { Search, ChevronRight, CheckCircle2, MessageSquare, Plus, ArrowRight, Sh
 import { api } from '../services/db';
 import { uid, toISO, addDays, today } from '../utils/date';
 import { taskStatusMeta } from '../utils/constants';
+import { mail } from '../services/mail';
 
 export function ClientLogin({ onLogin }) {
+  const [email, setEmail] = useState("");
   const [projectId, setProjectId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -17,6 +19,13 @@ export function ClientLogin({ onLogin }) {
       const p = projects.find(x => x.id === projectId.trim() || x.name.toLowerCase() === projectId.trim().toLowerCase());
       if (!p) { setError("project not found."); setBusy(false); return; }
       if (p.portalPassword && p.portalPassword !== password) { setError("incorrect password."); setBusy(false); return; }
+      
+      // Save client email if provided and different
+      if (email && email !== p.clientEmail) {
+        await api.upsertRow('gpm_projects', { ...p, clientEmail: email });
+        p.clientEmail = email; // Update local state copy
+      }
+      
       onLogin(p);
     } catch(err) {
       setError("connection error.");
@@ -33,6 +42,7 @@ export function ClientLogin({ onLogin }) {
         </div>
         <form onSubmit={submit} style={{ display:"flex", flexDirection:"column", gap:12, background:"#141415", padding:24, borderRadius:12, border:"1px solid #2A2A2E" }}>
           <h2 className="font-display" style={{ fontSize:18, fontWeight:500, color:"#fff", margin:0, marginBottom:8 }}>Welcome Back</h2>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email Address" style={{ width:"100%", boxSizing:"border-box", background:"#1E1E22", border:"1px solid #333", color:"#fff" }} required />
           <input value={projectId} onChange={e => setProjectId(e.target.value)} placeholder="Project ID or Name" style={{ width:"100%", boxSizing:"border-box", background:"#1E1E22", border:"1px solid #333", color:"#fff" }} required />
           <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password (if set)" style={{ width:"100%", boxSizing:"border-box", background:"#1E1E22", border:"1px solid #333", color:"#fff" }} />
           {error && <div style={{ fontSize:12, color:"#F87171", padding:"8px 12px", background:"rgba(248,113,113,.1)", borderRadius:6 }}>{error}</div>}
@@ -87,9 +97,16 @@ export function ClientPortal({ project, onLogout }) {
       setTickets(tickets.map(t => t.id === ticketDraft.id ? tk : t));
     } else {
       // Create new
-      const tk = { id: uid(), projectId: project.id, message: ticketDraft.message.trim(), priority: ticketDraft.priority, deadline: ticketDraft.deadline || null, status: 'open', isEdited: false, createdAt: new Date().toISOString() };
+      const tkId = `REQ-${Math.floor(1000 + Math.random() * 9000)}`;
+      const tk = { id: tkId, projectId: project.id, message: ticketDraft.message.trim(), priority: ticketDraft.priority, deadline: ticketDraft.deadline || null, status: 'open', isEdited: false, createdAt: new Date().toISOString() };
       await api.upsertRow('gpm_tickets', tk);
       setTickets([...tickets, tk]);
+      
+      // Fire Mail Notifications
+      if (project.clientEmail) {
+        mail.sendTicketAcknowledgement(project.clientEmail, tkId, tk.message, project.name);
+      }
+      mail.sendTeamNotification(tkId, tk.message, project.name, tk.priority, tk.deadline);
     }
     
     setTicketDraft({ id: null, message:"", priority:"medium", deadline:"" });
