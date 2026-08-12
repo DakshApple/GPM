@@ -24,8 +24,9 @@ export function AuthScreen({ onAuth }) {
       }
 
       // Store session
-      localStorage.setItem("gpm:account", JSON.stringify(found));
-      onAuth(found);
+      const sessionData = { ...found, expiresAt: Date.now() + 86400000 };
+      localStorage.setItem("gpm:account", JSON.stringify(sessionData));
+      onAuth(sessionData);
     } catch(err) {
       setError("connection error. try again.");
       console.error(err);

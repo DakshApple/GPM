@@ -26,6 +26,7 @@ export function ClientLogin({ onLogin }) {
         p.clientEmail = email; // Update local state copy
       }
       
+      localStorage.setItem("gpm:client_session", JSON.stringify({ projectId: p.id, expiresAt: Date.now() + 86400000 }));
       onLogin(p);
     } catch(err) {
       setError("connection error.");
@@ -68,17 +69,21 @@ export function ClientPortal({ project, onLogout }) {
   const [showTicket, setShowTicket] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
 
+  const fetchData = async () => {
+    const t = await api.getTable('gpm_tasks');
+    setTasks(t.filter(x => x.projectId === project.id && x.isClientVisible));
+    const m = await api.getTable('gpm_modules');
+    setModules(m.filter(x => x.projectId === project.id).sort((a,b) => a.order - b.order));
+    const tk = await api.getTable('gpm_tickets');
+    setTickets(tk.filter(x => x.projectId === project.id));
+    const deliv = await api.getTable('gpm_deliverables');
+    setDeliverables(deliv.filter(x => x.projectId === project.id).reverse());
+  };
+
   useEffect(() => {
-    (async () => {
-      const t = await api.getTable('gpm_tasks');
-      setTasks(t.filter(x => x.projectId === project.id && x.isClientVisible));
-      const m = await api.getTable('gpm_modules');
-      setModules(m.filter(x => x.projectId === project.id).sort((a,b) => a.order - b.order));
-      const tk = await api.getTable('gpm_tickets');
-      setTickets(tk.filter(x => x.projectId === project.id));
-      const deliv = await api.getTable('gpm_deliverables');
-      setDeliverables(deliv.filter(x => x.projectId === project.id).reverse());
-    })();
+    fetchData();
+    const interval = setInterval(fetchData, 3 * 60 * 1000);
+    return () => clearInterval(interval);
   }, [project.id]);
 
   const openTicketModal = (tk = null) => {

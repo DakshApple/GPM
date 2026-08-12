@@ -80,37 +80,70 @@ export default function App() {
   }, [allTickets, projects, isAdmin]);
 
   // load
-  useEffect(() => {
-    (async () => {
-      try {
-        // Try to restore session
-        const savedAccount = localStorage.getItem("gpm:account");
-        if (savedAccount) {
-          const parsed = JSON.parse(savedAccount);
+  const fetchData = async () => {
+    try {
+      // Try to restore session
+      const savedAccount = localStorage.getItem("gpm:account");
+      if (savedAccount) {
+        const parsed = JSON.parse(savedAccount);
+        if (parsed.expiresAt && Date.now() > parsed.expiresAt) {
+          localStorage.removeItem("gpm:account");
+          setAccount(null);
+        } else {
           // Validate account still exists
           const accs = await api.getTable('gpm_accounts');
           setAccounts(accs);
           const found = accs.find(a => a.id === parsed.id && a.password === parsed.password);
           if (found) setAccount(found);
-          else localStorage.removeItem("gpm:account");
-        } else {
-          const accs = await api.getTable('gpm_accounts');
-          setAccounts(accs);
+          else { localStorage.removeItem("gpm:account"); setAccount(null); }
         }
-      } catch (err) {
-        console.error("Auth error:", err);
+      } else {
+        const accs = await api.getTable('gpm_accounts');
+        setAccounts(accs);
       }
-      setUsers(await api.getTable('gpm_users'));
-      setEmployees(await api.getTable('gpm_employees'));
-      setAllProjects(await api.getTable('gpm_projects'));
-      setAllTasks(await api.getTable('gpm_tasks'));
-      setModules(await api.getTable('gpm_modules'));
-      setUpdates(await api.getTable('gpm_updates'));
-      setSuggestions(await api.getTable('gpm_suggestions'));
-      setAllTickets(await api.getTable('gpm_tickets'));
-      setDeliverables(await api.getTable('gpm_deliverables'));
+    } catch (err) {
+      console.error("Auth error:", err);
+    }
+    const [u, e, p, t, m, up, s, tk, d] = await Promise.all([
+      api.getTable('gpm_users'),
+      api.getTable('gpm_employees'),
+      api.getTable('gpm_projects'),
+      api.getTable('gpm_tasks'),
+      api.getTable('gpm_modules'),
+      api.getTable('gpm_updates'),
+      api.getTable('gpm_suggestions'),
+      api.getTable('gpm_tickets'),
+      api.getTable('gpm_deliverables')
+    ]);
+    setUsers(u); setEmployees(e); setAllProjects(p); setAllTasks(t);
+    setModules(m); setUpdates(up); setSuggestions(s); setAllTickets(tk);
+    setDeliverables(d);
+    
+    // Check client session
+    const cs = localStorage.getItem("gpm:client_session");
+    if (cs) {
+      const parsed = JSON.parse(cs);
+      if (parsed.expiresAt && Date.now() > parsed.expiresAt) {
+        localStorage.removeItem("gpm:client_session");
+        setClientProject(prev => (prev && prev !== "login" ? "login" : prev));
+      } else {
+        const found = p.find(proj => proj.id === parsed.projectId);
+        if (found) {
+          setClientProject(prev => (prev === "login" || !prev ? found : prev));
+        } else {
+          localStorage.removeItem("gpm:client_session");
+        }
+      }
+    }
+  };
+
+  useEffect(() => {
+    (async () => {
+      await fetchData();
       setInit(true);
     })();
+    const interval = setInterval(fetchData, 3 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   const runScheduler = useCallback((d) => {
@@ -265,7 +298,7 @@ export default function App() {
   
   if (clientProject) {
     if (clientProject === "login") return <ClientLogin onLogin={p => setClientProject(p)} />;
-    return <ClientPortal project={clientProject} onLogout={() => { setClientProject(null); window.location.hash=""; }} />;
+    return <ClientPortal project={clientProject} onLogout={() => { localStorage.removeItem("gpm:client_session"); setClientProject(null); window.location.hash=""; }} />;
   }
 
   if (!account) return <AuthScreen onAuth={(acc) => { setAccount(acc); setAccounts(prev => { const existing = prev.find(a=>a.id===acc.id); return existing ? prev : [...prev, acc]; }); }} />;
