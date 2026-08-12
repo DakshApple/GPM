@@ -28,11 +28,12 @@ export function TicketsView({ tickets, projects, onResolve, onConvertToTask }) {
                       </div>
                       <span className="font-mono" style={{ fontSize:10, color:"var(--text-3)" }}>{new Date(tk.createdAt).toLocaleDateString()}</span>
                     </div>
-                    <div style={{ display:"flex", gap:8, marginTop:12 }}>
+                    <div style={{ display:"flex", gap:8, marginTop:12, alignItems:"center" }}>
                       <span style={{ fontSize:10, padding:"2px 8px", borderRadius:4, textTransform:"capitalize", background: tk.priority==="high"?"rgba(248,113,113,.15)":tk.priority==="low"?"rgba(163,230,53,.15)":"rgba(245,166,35,.15)", color: tk.priority==="high"?"var(--red)":tk.priority==="low"?"var(--green)":"var(--amber)" }}>
                         {tk.priority} Priority
                       </span>
                       {tk.deadline && <span className="font-mono" style={{ fontSize:10, padding:"2px 8px", borderRadius:4, background:"var(--surface-3)", color:"var(--text-2)" }}>Deadline: {new Date(tk.deadline).toLocaleDateString()}</span>}
+                      {tk.isEdited && <span style={{ fontSize:10, padding:"2px 8px", borderRadius:4, background:"rgba(255,255,255,0.1)", color:"var(--text)", display:"flex", alignItems:"center", gap:4 }}>⚠️ Edited by Client</span>}
                     </div>
                     <div style={{ display:"flex", gap:8, marginTop:16 }}>
                       <button onClick={() => onConvertToTask(tk)} className="btn btn-primary" style={{ gap:6 }}><ArrowRight style={{width:14,height:14}}/> convert to task</button>

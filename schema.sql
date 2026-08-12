@@ -73,6 +73,7 @@ CREATE TABLE public.gpm_tickets (
     status TEXT DEFAULT 'open',
     priority TEXT DEFAULT 'medium',
     deadline TEXT,
+    is_edited BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

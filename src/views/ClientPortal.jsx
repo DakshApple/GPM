@@ -67,12 +67,32 @@ export function ClientPortal({ project, onLogout }) {
     })();
   }, [project.id]);
 
+  const openTicketModal = (tk = null) => {
+    if (tk) {
+      setTicketDraft({ id: tk.id, message: tk.message, priority: tk.priority, deadline: tk.deadline || "" });
+    } else {
+      setTicketDraft({ id: null, message:"", priority:"medium", deadline:"" });
+    }
+    setShowTicket(true);
+  };
+
   const submitTicket = async () => {
     if (!ticketDraft.message.trim()) return;
-    const tk = { id: uid(), projectId: project.id, message: ticketDraft.message.trim(), priority: ticketDraft.priority, deadline: ticketDraft.deadline || null, status: 'open', createdAt: new Date().toISOString() };
-    await api.upsertRow('gpm_tickets', tk);
-    setTickets([...tickets, tk]);
-    setTicketDraft({ message:"", priority:"medium", deadline:"" });
+    
+    if (ticketDraft.id) {
+      // Edit existing
+      const existing = tickets.find(t => t.id === ticketDraft.id);
+      const tk = { ...existing, message: ticketDraft.message.trim(), priority: ticketDraft.priority, deadline: ticketDraft.deadline || null, isEdited: true };
+      await api.upsertRow('gpm_tickets', tk);
+      setTickets(tickets.map(t => t.id === ticketDraft.id ? tk : t));
+    } else {
+      // Create new
+      const tk = { id: uid(), projectId: project.id, message: ticketDraft.message.trim(), priority: ticketDraft.priority, deadline: ticketDraft.deadline || null, status: 'open', isEdited: false, createdAt: new Date().toISOString() };
+      await api.upsertRow('gpm_tickets', tk);
+      setTickets([...tickets, tk]);
+    }
+    
+    setTicketDraft({ id: null, message:"", priority:"medium", deadline:"" });
     setShowTicket(false);
   };
 
@@ -208,7 +228,12 @@ export function ClientPortal({ project, onLogout }) {
               <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
                 {tickets.map(tk => (
                   <div key={tk.id} style={{ padding:16, borderRadius:12, background:"#141415", border:"1px solid #2A2A2E" }}>
-                    <div style={{ fontSize:13, color:"#fff", lineHeight:1.5, marginBottom:8 }}>"{tk.message}"</div>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
+                      <div style={{ fontSize:13, color:"#fff", lineHeight:1.5 }}>"{tk.message}"</div>
+                      {tk.status === "open" && (
+                        <button onClick={() => openTicketModal(tk)} style={{ background:"transparent", border:"1px solid #333", color:"#888", borderRadius:4, padding:"2px 8px", fontSize:11, cursor:"pointer" }}>Edit</button>
+                      )}
+                    </div>
                     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                       <span style={{ fontSize:11, color:"#666" }}>{new Date(tk.createdAt).toLocaleDateString()}</span>
                       <span style={{ fontSize:11, padding:"2px 6px", borderRadius:4, background: tk.status==="resolved"?"rgba(163,230,53,.1)":"rgba(74,158,255,.1)", color: tk.status==="resolved"?"#A3E635":"#4A9EFF" }}>{tk.status}</span>
