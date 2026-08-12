@@ -1,61 +1,64 @@
-// Mailing Service using Web3Forms (or can be swapped with EmailJS/Resend)
-// Note: Web3Forms sends emails to the owner of the access key.
-// To send emails to clients, you need to enable 'Autoresponse' in Web3Forms dashboard,
-// or switch to a transactional provider like EmailJS or Resend.
+// GPM Mailing Service using Web3Forms
+// All admin notifications go to daksh@genartml.com
 
-const WEB3FORMS_ACCESS_KEY = "17203923-0d98-420b-9da6-6389861baaf3"; // User provided key
+const WEB3FORMS_ACCESS_KEY = "17203923-0d98-420b-9da6-6389861baaf3";
+const ADMIN_EMAIL = "daksh@genartml.com";
 
-const sendEmail = async (subject, message, clientEmail) => {
-  console.log(`[MAIL SYSTEM] Sending email to: ${clientEmail} | Subject: ${subject}`);
-  console.log(`[MAIL SYSTEM] Message: ${message}`);
+const sendEmail = async (subject, message, replyToEmail) => {
+  console.log(`[MAIL] → ${replyToEmail} | ${subject}`);
   
-  if (WEB3FORMS_ACCESS_KEY === "YOUR_WEB3FORMS_ACCESS_KEY") {
-    console.warn("Web3Forms access key not set. Email logged to console only.");
-    return;
-  }
-
   try {
-    await fetch("https://api.web3forms.com/submit", {
+    const res = await fetch("https://api.web3forms.com/submit", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({
         access_key: WEB3FORMS_ACCESS_KEY,
         subject: subject,
-        from_name: "GPM Mailer",
-        email: clientEmail, // For Web3Forms Autoresponse
+        from_name: "GPM Project Manager",
+        email: replyToEmail,
         message: message,
       })
     });
+    const data = await res.json();
+    if (data.success) {
+      console.log(`[MAIL] ✅ Sent successfully`);
+    } else {
+      console.error(`[MAIL] ❌ Failed:`, data);
+    }
   } catch (err) {
-    console.error("Failed to send email via Web3Forms", err);
+    console.error("[MAIL] ❌ Network error:", err);
   }
 };
 
 export const mail = {
+  // Client submits a ticket → notify admin
   async sendTicketAcknowledgement(clientEmail, ticketId, ticketMessage, projectName) {
     const subject = `Request Received: ${ticketId} - ${projectName}`;
-    const message = `Hello,\n\nWe have received your request for the project "${projectName}".\n\nRequest ID: ${ticketId}\nDetails: ${ticketMessage}\n\nOur team has been notified and will review it shortly.\n\nThank you,\nThe Team`;
+    const message = `Hello,\n\nWe have received your request for the project "${projectName}".\n\nRequest ID: ${ticketId}\nDetails: ${ticketMessage}\n\nOur team has been notified and will review it shortly.\n\nThank you,\nThe GPM Team`;
     await sendEmail(subject, message, clientEmail);
   },
 
+  // Admin resolves a ticket → notify client
   async sendTicketResolved(clientEmail, ticketId, ticketMessage, projectName) {
     const subject = `Resolved: ${ticketId} - ${projectName}`;
-    const message = `Hello,\n\nGreat news! Your request for the project "${projectName}" has been resolved.\n\nRequest ID: ${ticketId}\nDetails: ${ticketMessage}\n\nThank you for your patience.\n\nThe Team`;
+    const message = `Hello,\n\nGreat news! Your request for the project "${projectName}" has been resolved.\n\nRequest ID: ${ticketId}\nDetails: ${ticketMessage}\n\nThank you for your patience.\n\nThe GPM Team`;
     await sendEmail(subject, message, clientEmail);
   },
 
+  // Client submits a ticket → notify admin team at daksh@genartml.com
   async sendTeamNotification(ticketId, ticketMessage, projectName, priority, deadline) {
-    const subject = `[NEW REQUEST] ${projectName} - ${ticketId}`;
-    const message = `A new client request has been submitted for ${projectName}.\n\nPriority: ${priority}\nDeadline: ${deadline || 'None'}\n\nMessage:\n${ticketMessage}\n\nPlease review it in the admin dashboard.`;
-    await sendEmail(subject, message, "admin@gpm.local");
+    const subject = `[NEW CLIENT REQUEST] ${projectName} - ${ticketId}`;
+    const message = `🔔 New Client Request\n\nProject: ${projectName}\nRequest ID: ${ticketId}\nPriority: ${priority}\nDeadline: ${deadline || 'Not specified'}\n\nClient Message:\n"${ticketMessage}"\n\nPlease review it in the GPM admin dashboard.`;
+    await sendEmail(subject, message, ADMIN_EMAIL);
   },
   
-  async sendWelcomeEmail(adminEmail, accountName) {
+  async sendWelcomeEmail(email, accountName) {
     const subject = `Welcome to GPM, ${accountName}!`;
-    const message = `Your account has been successfully created.`;
-    await sendEmail(subject, message, adminEmail);
+    const message = `Your GPM account has been successfully created.\n\nYou can now log in to the dashboard.`;
+    await sendEmail(subject, message, email);
   },
 
+  // Notify specific team member assigned to a project
   async sendProjectMemberNotification(memberEmail, subject, message) {
     await sendEmail(subject, message, memberEmail);
   }
