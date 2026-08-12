@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ChevronRight, CheckCircle2, MessageSquare, Plus, ArrowRight, Shield, FolderKanban, Clock, Download, ExternalLink } from 'lucide-react';
+import { Search, ChevronRight, CheckCircle2, MessageSquare, Plus, ArrowRight, Shield, FolderKanban, Clock, Download, ExternalLink, FileText } from 'lucide-react';
 import { api } from '../services/db';
 import { uid, toISO, addDays, today, fmtDate, daysBetween } from '../utils/date';
 import { taskStatusMeta } from '../utils/constants';
@@ -334,7 +334,7 @@ export function ClientPortal({ project, onLogout }) {
                     <div style={{ padding:24, borderRadius:16, background:"#141415", border:"1px solid #2A2A2E", transition:"transform 0.2s, borderColor 0.2s", cursor:"pointer", ':hover': { borderColor: '#4A9EFF', transform:'translateY(-2px)' } }}>
                       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:16 }}>
                         <div style={{ width:40, height:40, borderRadius:10, background:"rgba(74,158,255,.1)", color:"#4A9EFF", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                          {d.type === 'link' ? <ExternalLink style={{ width:20, height:20 }} /> : d.type === 'github' ? <Shield style={{ width:20, height:20 }} /> : <Download style={{ width:20, height:20 }} />}
+                          {d.type === 'link' ? <ExternalLink style={{ width:20, height:20 }} /> : d.type === 'github' ? <Shield style={{ width:20, height:20 }} /> : d.type === 'doc' ? <FileText style={{ width:20, height:20 }} /> : <Download style={{ width:20, height:20 }} />}
                         </div>
                         <span style={{ fontSize:11, padding:"4px 8px", borderRadius:4, background:"#1E1E22", color:"#888" }}>{new Date(d.createdAt).toLocaleDateString()}</span>
                       </div>

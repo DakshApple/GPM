@@ -357,6 +357,7 @@ export function VaultTab({ project, deliverables, onAddDeliverable, onDeleteDeli
               <option value="figma">Figma</option>
               <option value="github">GitHub repo</option>
               <option value="drive">Google Drive</option>
+              <option value="doc">Document (PDF/Doc)</option>
             </select>
           </div>
         </div>
