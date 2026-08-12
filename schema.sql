@@ -40,6 +40,7 @@ CREATE TABLE public.gpm_modules (
     project_id TEXT REFERENCES public.gpm_projects(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     status TEXT,
+    start_date TEXT,
     deadline TEXT
 );
 

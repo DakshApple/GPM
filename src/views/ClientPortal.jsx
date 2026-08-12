@@ -293,7 +293,7 @@ export function ClientPortal({ project, onLogout }) {
                             <div style={{ fontSize:24, fontWeight:500, color:isComplete?"#888":"#fff" }}>{m.name}</div>
                           </div>
                           <div style={{ textAlign:"right" }}>
-                            <div style={{ fontSize:14, color:"#fff" }}>{project.isOngoing ? "—" : fmtDate(m.deadline)}</div>
+                            <div style={{ fontSize:14, color:"#fff" }}>{project.isOngoing ? "—" : m.startDate ? `${fmtDate(m.startDate)} - ${fmtDate(m.deadline)}` : fmtDate(m.deadline)}</div>
                             <div style={{ fontSize:12, color:"#888", marginTop:4 }}>{mDone} of {mTasks.length} tasks</div>
                           </div>
                         </div>

@@ -121,19 +121,19 @@ function ModulesTab({ project, modules, tasks, onCreateModule, onUpdateModule, o
   const [suggested, setSuggested] = useState([]);
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState(null);
-  const [draft, setDraft] = useState({ name:"", description:"", deadline:project.deadline });
+  const [draft, setDraft] = useState({ name:"", description:"", startDate:project.startDate || "", deadline:project.deadline });
 
   const runSuggest = () => { setSuggested(suggestModules(project)); setShowSuggestion(true); };
-  const acceptSuggestions = () => { suggested.forEach(m => onCreateModule(m)); setShowSuggestion(false); setSuggested([]); };
+  const acceptSuggestions = () => { suggested.forEach(m => onCreateModule({ ...m, startDate: project.startDate })); setShowSuggestion(false); setSuggested([]); };
   const addModule = () => {
     if (!draft.name) return;
     const safeDL = draft.deadline > project.deadline ? project.deadline : draft.deadline;
-    onCreateModule({ id:uid(), projectId:project.id, name:draft.name, description:draft.description, deadline:safeDL, order:modules.length+1 });
-    setDraft({ name:"", description:"", deadline:project.deadline }); setShowAdd(false);
+    onCreateModule({ id:uid(), projectId:project.id, name:draft.name, description:draft.description, startDate:draft.startDate, deadline:safeDL, order:modules.length+1 });
+    setDraft({ name:"", description:"", startDate:project.startDate || "", deadline:project.deadline }); setShowAdd(false);
   };
   const saveEdit = (mod) => {
     const safeDL = draft.deadline > project.deadline ? project.deadline : draft.deadline;
-    onUpdateModule({ ...mod, name:draft.name, description:draft.description, deadline:safeDL });
+    onUpdateModule({ ...mod, name:draft.name, description:draft.description, startDate:draft.startDate, deadline:safeDL });
     setEditId(null);
   };
 
@@ -143,7 +143,7 @@ function ModulesTab({ project, modules, tasks, onCreateModule, onUpdateModule, o
         <div style={{ fontSize:12, color:"var(--text-2)" }}>PRD milestones. progress rolls up from tasks.</div>
         <div style={{ display:"flex", gap:8 }}>
           <button onClick={runSuggest} className="btn btn-secondary"><Wand2 style={{ width:14, height:14 }} /> suggest</button>
-          <button onClick={() => { setShowAdd(true); setDraft({ name:"", description:"", deadline:project.deadline }); }} className="btn btn-primary"><Plus style={{ width:14, height:14 }} /> module</button>
+          <button onClick={() => { setShowAdd(true); setDraft({ name:"", description:"", startDate:project.startDate || "", deadline:project.deadline }); }} className="btn btn-primary"><Plus style={{ width:14, height:14 }} /> module</button>
         </div>
       </div>
       {showSuggestion && (
@@ -175,15 +175,22 @@ function ModulesTab({ project, modules, tasks, onCreateModule, onUpdateModule, o
           <input value={draft.name} onChange={e => setDraft({...draft,name:e.target.value})} placeholder="module name" style={{ width:"100%", boxSizing:"border-box" }} autoFocus />
           <input value={draft.description} onChange={e => setDraft({...draft,description:e.target.value})} placeholder="short description" style={{ width:"100%", boxSizing:"border-box" }} />
           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-            <input type="date" value={draft.deadline} onChange={e => setDraft({...draft,deadline:e.target.value})} max={project.deadline} />
-            <div style={{ marginLeft:"auto", display:"flex", gap:8 }}>
+            <div>
+              <label style={{ fontSize:10, color:"var(--text-3)", display:"block", marginBottom:4 }}>start date</label>
+              <input type="date" value={draft.startDate} onChange={e => setDraft({...draft,startDate:e.target.value})} />
+            </div>
+            <div>
+              <label style={{ fontSize:10, color:"var(--text-3)", display:"block", marginBottom:4 }}>deadline</label>
+              <input type="date" value={draft.deadline} onChange={e => setDraft({...draft,deadline:e.target.value})} max={project.deadline} />
+            </div>
+            <div style={{ marginLeft:"auto", display:"flex", gap:8, alignSelf:"flex-end" }}>
               <button className="btn btn-secondary" onClick={() => setShowAdd(false)}>cancel</button>
               <button className="btn btn-primary" onClick={addModule} disabled={!draft.name}>add</button>
             </div>
           </div>
         </div>
       )}
-      <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+      <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
         {modules.map(m => {
           const modTasks = tasks.filter(t => t.moduleId === m.id);
           const done = modTasks.filter(t => t.status === "done").length;
@@ -194,12 +201,19 @@ function ModulesTab({ project, modules, tasks, onCreateModule, onUpdateModule, o
           
           if (isEditing) {
             return (
-              <div key={m.id} className="fade-in" style={{ padding:12, borderRadius:8, background:"var(--surface)", border:"1px solid var(--amber)", display:"flex", flexDirection:"column", gap:8 }}>
+              <div key={m.id} className="fade-in" style={{ padding:16, borderRadius:8, background:"var(--surface)", border:"1px solid var(--amber)", display:"flex", flexDirection:"column", gap:10 }}>
                 <input value={draft.name} onChange={e => setDraft({...draft,name:e.target.value})} style={{ width:"100%", boxSizing:"border-box" }} />
                 <input value={draft.description} onChange={e => setDraft({...draft,description:e.target.value})} style={{ width:"100%", boxSizing:"border-box" }} />
                 <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                  <input type="date" value={draft.deadline} onChange={e => setDraft({...draft,deadline:e.target.value})} max={project.deadline} />
-                  <div style={{ marginLeft:"auto", display:"flex", gap:8 }}>
+                  <div>
+                    <label style={{ fontSize:10, color:"var(--text-3)", display:"block", marginBottom:4 }}>start date</label>
+                    <input type="date" value={draft.startDate} onChange={e => setDraft({...draft,startDate:e.target.value})} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize:10, color:"var(--text-3)", display:"block", marginBottom:4 }}>deadline</label>
+                    <input type="date" value={draft.deadline} onChange={e => setDraft({...draft,deadline:e.target.value})} max={project.deadline} />
+                  </div>
+                  <div style={{ marginLeft:"auto", display:"flex", gap:8, alignSelf:"flex-end" }}>
                     <button className="btn btn-secondary" onClick={() => setEditId(null)}>cancel</button>
                     <button className="btn btn-primary" onClick={() => saveEdit(m)}>save</button>
                   </div>
@@ -208,30 +222,44 @@ function ModulesTab({ project, modules, tasks, onCreateModule, onUpdateModule, o
             );
           }
           return (
-            <div key={m.id} style={{ padding:12, borderRadius:8, background:"var(--surface)", border:"1px solid var(--border)" }}>
-              <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:8 }}>
-                <div style={{ display:"flex", alignItems:"flex-start", gap:8, flex:1, minWidth:0 }}>
-                  <div style={{ width:24, height:24, borderRadius:6, display:"flex", alignItems:"center", justifyContent:"center", background:"var(--surface-3)", flexShrink:0 }}>
-                    <span className="font-mono" style={{ fontSize:10 }}>{m.order}</span>
+            <div key={m.id} style={{ padding:16, borderRadius:8, background:"var(--surface)", border:"1px solid var(--border)" }}>
+              <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:12 }}>
+                <div style={{ display:"flex", alignItems:"flex-start", gap:12, flex:1, minWidth:0 }}>
+                  <div style={{ width:28, height:28, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", background:"var(--surface-3)", flexShrink:0 }}>
+                    <span className="font-mono" style={{ fontSize:12, fontWeight:500 }}>{m.order}</span>
                   </div>
                   <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:13, fontWeight:500 }}>{m.name}</div>
-                    {m.description && <div style={{ fontSize:11, marginTop:2, color:"var(--text-3)" }}>{m.description}</div>}
+                    <div style={{ fontSize:14, fontWeight:600 }}>{m.name}</div>
+                    {m.description && <div style={{ fontSize:12, marginTop:4, color:"var(--text-3)" }}>{m.description}</div>}
+                    {m.startDate && <div className="font-mono" style={{ fontSize:10, marginTop:4, color:"var(--text-2)" }}>{fmtDate(m.startDate)} → {fmtDate(m.deadline)}</div>}
                   </div>
                 </div>
-                <div style={{ textAlign:"right", flexShrink:0, marginLeft:8 }}>
-                  <div className="font-mono" style={{ fontSize:10, color: late?"var(--red)":"var(--text-2)" }}>{fmtDate(m.deadline)}</div>
-                  <div className="font-mono" style={{ fontSize:10, color: late?"var(--red)":"var(--text-3)" }}>{late?`${Math.abs(days)}d late`:`${days}d left`}</div>
+                <div style={{ textAlign:"right", flexShrink:0, marginLeft:12 }}>
+                  {!m.startDate && <div className="font-mono" style={{ fontSize:11, color: late?"var(--red)":"var(--text-2)" }}>due: {fmtDate(m.deadline)}</div>}
+                  <div className="font-mono" style={{ fontSize:11, color: late?"var(--red)":"var(--text-3)", marginTop:4 }}>{late?`${Math.abs(days)}d late`:`${days}d left`}</div>
                 </div>
               </div>
-              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                <div style={{ flex:1, height:3, borderRadius:2, overflow:"hidden", background:"var(--surface-3)" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:16 }}>
+                <div style={{ flex:1, height:4, borderRadius:2, overflow:"hidden", background:"var(--surface-3)" }}>
                   <div style={{ height:"100%", width:`${pct}%`, background: pct===100?"var(--green)":"var(--amber)" }} />
                 </div>
-                <span className="font-mono" style={{ fontSize:10, color:"var(--text-2)" }}>{done}/{modTasks.length}</span>
-                <button onClick={() => { setEditId(m.id); setDraft({ name:m.name, description:m.description||"", deadline:m.deadline }); }} style={{ padding:4, borderRadius:4, background:"none", border:"none", cursor:"pointer", color:"var(--text-3)" }} title="edit"><Edit3 style={{ width:12, height:12 }} /></button>
-                <button onClick={() => { if(confirm("delete module?")) onDeleteModule(m.id); }} style={{ padding:4, borderRadius:4, background:"none", border:"none", cursor:"pointer", color:"var(--text-3)" }} title="delete"><Trash2 style={{ width:12, height:12 }} /></button>
+                <span className="font-mono" style={{ fontSize:11, color:"var(--text-2)" }}>{done}/{modTasks.length} tasks</span>
+                <button onClick={() => { setEditId(m.id); setDraft({ name:m.name, description:m.description||"", startDate:m.startDate||"", deadline:m.deadline }); }} style={{ padding:4, borderRadius:4, background:"none", border:"none", cursor:"pointer", color:"var(--text-3)" }} title="edit"><Edit3 style={{ width:14, height:14 }} /></button>
+                <button onClick={() => { if(confirm("delete module?")) onDeleteModule(m.id); }} style={{ padding:4, borderRadius:4, background:"none", border:"none", cursor:"pointer", color:"var(--text-3)" }} title="delete"><Trash2 style={{ width:14, height:14 }} /></button>
               </div>
+              
+              {modTasks.length > 0 && (
+                <div style={{ display:"flex", flexDirection:"column", gap:6, padding:"12px", background:"var(--surface-2)", borderRadius:8, border:"1px solid var(--border-light)" }}>
+                  <div style={{ fontSize:11, fontWeight:500, color:"var(--text-3)", textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:4 }}>Tasks in this phase</div>
+                  {modTasks.map(t => (
+                    <div key={t.id} style={{ display:"flex", alignItems:"center", gap:8, fontSize:12 }}>
+                      {t.status === "done" ? <Check style={{ width:12, height:12, color:"var(--green)" }} /> : <div style={{ width:10, height:10, borderRadius:5, border:"2px solid var(--border-strong)" }} />}
+                      <span style={{ color:t.status==="done"?"var(--text-3)":"var(--text)", textDecoration:t.status==="done"?"line-through":"none" }}>{t.title}</span>
+                      <span className="font-mono" style={{ marginLeft:"auto", fontSize:9, color:"var(--text-3)", padding:"2px 6px", borderRadius:4, background:"var(--surface-3)" }}>{t.status.replace("_"," ")}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}
