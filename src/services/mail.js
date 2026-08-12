@@ -47,7 +47,6 @@ export const mail = {
   async sendTeamNotification(ticketId, ticketMessage, projectName, priority, deadline) {
     const subject = `[NEW REQUEST] ${projectName} - ${ticketId}`;
     const message = `A new client request has been submitted for ${projectName}.\n\nPriority: ${priority}\nDeadline: ${deadline || 'None'}\n\nMessage:\n${ticketMessage}\n\nPlease review it in the admin dashboard.`;
-    // We send this to the admin (owner of the Web3Forms key), so we can just pass a generic admin email
     await sendEmail(subject, message, "admin@gpm.local");
   },
   
@@ -55,5 +54,9 @@ export const mail = {
     const subject = `Welcome to GPM, ${accountName}!`;
     const message = `Your account has been successfully created.`;
     await sendEmail(subject, message, adminEmail);
+  },
+
+  async sendProjectMemberNotification(memberEmail, subject, message) {
+    await sendEmail(subject, message, memberEmail);
   }
 };

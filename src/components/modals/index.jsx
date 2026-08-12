@@ -3,6 +3,8 @@ import { X, Plus, Check, Wand2 } from 'lucide-react';
 import { PALETTE } from '../../utils/constants';
 import { uid, toISO, addDays, fromISO, today } from '../../utils/date';
 import { suggestTaskBreakdown } from '../../services/heuristics';
+export { ChangePasswordModal } from './ChangePasswordModal';
+
 
 export function ProjectEditor({ draft, setDraft, employees, users }) {
   const set = (k,v) => setDraft({...draft,[k]:v});

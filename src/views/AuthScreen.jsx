@@ -1,69 +1,27 @@
 import React, { useState } from 'react';
-import { Shield, ArrowRight } from 'lucide-react';
-import { supabaseAuth } from '../services/auth';
-import { uid } from '../utils/date';
-import { KEYS } from '../utils/constants';
-import { store } from '../services/storage';
-
-async function resolveProfile(supabaseUser, signupName) {
-  const users = (await store.get(KEYS.users)) || [];
-  const email = supabaseUser.email?.toLowerCase();
-  const existing = users.find(u => u.email?.toLowerCase() === email);
-  if (existing) {
-    if (!existing.supabaseUid) {
-      existing.supabaseUid = supabaseUser.id;
-      await store.set(KEYS.users, users);
-    }
-    return existing;
-  }
-  const profile = {
-    id: `u-${uid()}`, name: signupName || supabaseUser.email.split("@")[0],
-    email: supabaseUser.email, role: "admin", title: "Team", supabaseUid: supabaseUser.id,
-  };
-  await store.set(KEYS.users, [...users, profile]);
-  return profile;
-}
+import { Shield, ArrowRight, LogIn } from 'lucide-react';
+import { api } from '../services/db';
 
 export function AuthScreen({ onAuth }) {
-  const [mode, setMode] = useState("login");
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
   const [error, setError] = useState("");
-  const [info, setInfo] = useState("");
   const [busy, setBusy] = useState(false);
 
   const submit = async (e) => {
-    e.preventDefault(); setError(""); setInfo(""); setBusy(true);
+    e.preventDefault(); setError(""); setBusy(true);
     try {
-      if (mode === "login") {
-        const session = await supabaseAuth.signIn(email.trim(), password);
-        await supabaseAuth.saveSession(session);
-        const profile = await resolveProfile(session.user, null);
-        onAuth(profile);
-      } else {
-        if (!name.trim()) { setError("name is required."); setBusy(false); return; }
-        if (password.length < 6) { setError("password must be 6+ characters."); setBusy(false); return; }
-        const data = await supabaseAuth.signUp(email.trim(), password);
-        if (data.access_token) {
-          await supabaseAuth.saveSession(data);
-          const profile = await resolveProfile(data.user, name.trim());
-          onAuth(profile);
-        } else if (data.id || (data.user && data.user.id)) {
-          const u = data.user || data;
-          const users = (await store.get(KEYS.users)) || [];
-          if (!users.find(x => x.email?.toLowerCase() === email.trim().toLowerCase())) {
-            users.push({ id: `u-${uid()}`, name: name.trim(), email: email.trim(), role: "admin", title: "Team", supabaseUid: u.id });
-            await store.set(KEYS.users, users);
-          }
-          setInfo("account created. check your email for a confirmation link, then come back and sign in.");
-          setMode("login"); setBusy(false); return;
-        } else {
-          setError("unexpected response. try again."); setBusy(false); return;
-        }
-      }
+      const accounts = await api.getTable('gpm_accounts');
+      const found = accounts.find(a => a.username === username.trim());
+      if (!found) { setError("account not found."); setBusy(false); return; }
+      if (found.password !== password) { setError("incorrect password."); setBusy(false); return; }
+      
+      // Store session
+      localStorage.setItem("gpm:account", JSON.stringify(found));
+      onAuth(found);
     } catch(err) {
-      setError(err.message || "something went wrong.");
+      setError("connection error. try again.");
+      console.error(err);
     }
     setBusy(false);
   };
@@ -85,7 +43,7 @@ export function AuthScreen({ onAuth }) {
         </div>
         <div className="font-mono" style={{ display:"flex", alignItems:"center", gap:8, fontSize:11 }}>
           <div className="pulse-dot" style={{ width:6, height:6, borderRadius:3, background:"var(--green)" }} />
-          <span style={{ color:"var(--text-3)" }}>genartml project manager · v3.0 · supabase auth</span>
+          <span style={{ color:"var(--text-3)" }}>genartml project manager · v4.0 · rbac enabled</span>
         </div>
       </div>
 
@@ -96,25 +54,17 @@ export function AuthScreen({ onAuth }) {
               <div className="font-display" style={{ width:28, height:28, borderRadius:6, display:"flex", alignItems:"center", justifyContent:"center", background:"var(--amber)", color:"#1A0F00", fontWeight:700, fontSize:12 }}>G</div>
               <span className="font-display" style={{ fontWeight:600, fontSize:13 }}>GPM</span>
             </div>
-            <h2 className="font-display" style={{ fontSize:22, fontWeight:600, marginBottom:4 }}>{mode === "login" ? "welcome back" : "create account"}</h2>
-            <p style={{ fontSize:13, color:"var(--text-2)" }}>{mode === "login" ? "sign in to genartml project manager." : "internal use — admins only."}</p>
+            <h2 className="font-display" style={{ fontSize:22, fontWeight:600, marginBottom:4 }}>welcome back</h2>
+            <p style={{ fontSize:13, color:"var(--text-2)" }}>sign in to genartml project manager.</p>
           </div>
           <form onSubmit={submit} style={{ display:"flex", flexDirection:"column", gap:10 }}>
-            {mode === "signup" && <input value={name} onChange={e => setName(e.target.value)} required placeholder="full name" style={{ width:"100%", boxSizing:"border-box" }} />}
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="email" style={{ width:"100%", boxSizing:"border-box" }} />
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder={mode==="signup"?"password (6+ characters)":"password"} minLength={mode==="signup"?6:1} style={{ width:"100%", boxSizing:"border-box" }} />
+            <input value={username} onChange={e => setUsername(e.target.value)} required placeholder="username" autoComplete="username" style={{ width:"100%", boxSizing:"border-box" }} />
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="password" autoComplete="current-password" style={{ width:"100%", boxSizing:"border-box" }} />
             {error && <div style={{ fontSize:12, padding:"8px 12px", borderRadius:6, background:"rgba(248,113,113,.1)", color:"var(--red)" }}>{error}</div>}
-            {info && <div style={{ fontSize:12, padding:"8px 12px", borderRadius:6, background:"rgba(74,158,255,.1)", color:"var(--blue)", lineHeight:1.5 }}>{info}</div>}
             <button type="submit" disabled={busy} className="btn btn-primary" style={{ width:"100%", justifyContent:"center", padding:"12px 14px", fontSize:14 }}>
-              {busy ? "authenticating..." : mode === "login" ? "sign in" : "create account"}
+              {busy ? "authenticating..." : "sign in"}
             </button>
           </form>
-          <div style={{ marginTop:16, textAlign:"center", fontSize:13, color:"var(--text-2)" }}>
-            {mode === "login" ? "no account?" : "have one?"}{" "}
-            <button onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); setInfo(""); }} style={{ color:"var(--amber)", background:"none", border:"none", cursor:"pointer", textDecoration:"underline", fontSize:13 }}>
-              {mode === "login" ? "create one" : "sign in"}
-            </button>
-          </div>
           <div style={{ marginTop:16, textAlign:"center" }}>
             <button type="button" onClick={() => window.location.hash = "#client"} style={{ color:"var(--text-2)", background:"none", border:"none", cursor:"pointer", fontSize:13, display:"flex", alignItems:"center", gap:6, margin:"0 auto" }}>
                client portal login <ArrowRight style={{width:12,height:12}} />
@@ -122,7 +72,7 @@ export function AuthScreen({ onAuth }) {
           </div>
           <div style={{ marginTop:32, paddingTop:20, borderTop:"1px solid var(--border)", display:"flex", alignItems:"center", gap:8 }}>
             <Shield style={{ width:14, height:14, color:"var(--text-3)" }} />
-            <span style={{ fontSize:11, color:"var(--text-3)" }}>auth powered by supabase. passwords are never stored in the app.</span>
+            <span style={{ fontSize:11, color:"var(--text-3)" }}>role-based access control enabled. contact your admin for credentials.</span>
           </div>
         </div>
       </div>

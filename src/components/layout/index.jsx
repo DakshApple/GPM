@@ -1,17 +1,28 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, Command, LayoutDashboard, Calendar, Layers, FolderKanban, ListTodo, Users, Sparkles, LogOut, MessageSquare } from 'lucide-react';
+import { Search, Command, LayoutDashboard, Calendar, Layers, FolderKanban, ListTodo, Users, Sparkles, LogOut, MessageSquare, UserCog, Key } from 'lucide-react';
 
-export function Sidebar({ view, setView, user, counts, onLogout, onOpenPalette }) {
-  const items = [
-    { id:"dashboard", label:"dashboard",      icon: LayoutDashboard },
-    { id:"calendar",  label:"calendar",       icon: Calendar },
-    { id:"timeline",  label:"timeline",       icon: Layers },
-    { id:"projects",  label:"projects",       icon: FolderKanban, count: counts.projects },
-    { id:"tasks",     label:"tasks",          icon: ListTodo,     count: counts.tasks },
-    { id:"tickets",   label:"client tickets", icon: MessageSquare,count: counts.tickets, accent: true },
-    { id:"team",      label:"team",           icon: Users },
-    { id:"ai",        label:"ai suggestions", icon: Sparkles,     count: counts.suggestions, accent: true },
+export function Sidebar({ view, setView, account, counts, onLogout, onOpenPalette, onChangePassword }) {
+  const allItems = [
+    { id:"dashboard", label:"dashboard",      icon: LayoutDashboard, feature:"dashboard" },
+    { id:"calendar",  label:"calendar",       icon: Calendar, feature:"calendar" },
+    { id:"timeline",  label:"timeline",       icon: Layers, feature:"timeline" },
+    { id:"projects",  label:"projects",       icon: FolderKanban, count: counts.projects, feature:"projects" },
+    { id:"tasks",     label:"tasks",          icon: ListTodo,     count: counts.tasks, feature:"tasks" },
+    { id:"tickets",   label:"client tickets", icon: MessageSquare,count: counts.tickets, accent: true, feature:"tickets" },
+    { id:"team",      label:"team",           icon: Users, feature:"team_view" },
+    { id:"ai",        label:"ai suggestions", icon: Sparkles,     count: counts.suggestions, accent: true, feature:"ai" },
   ];
+
+  const isAdmin = account.role === "admin";
+  const hasFeature = (f) => isAdmin || (account.featureAccess && (account.featureAccess.includes("all") || account.featureAccess.includes(f)));
+  
+  const items = allItems.filter(item => hasFeature(item.feature));
+  
+  // Admin-only items
+  if (isAdmin) {
+    items.push({ id:"manage_users", label:"manage users", icon: UserCog, feature:"manage_users" });
+  }
+
   return (
     <aside style={{ width:220, flexShrink:0, display:"flex", flexDirection:"column", borderRight:"1px solid var(--border)", background:"var(--surface)" }}>
       <div style={{ padding:16, display:"flex", alignItems:"center", gap:8, borderBottom:"1px solid var(--border)" }}>
@@ -55,12 +66,13 @@ export function Sidebar({ view, setView, user, counts, onLogout, onOpenPalette }
       </div>
       <div style={{ padding:8, borderTop:"1px solid var(--border)" }}>
         <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px" }}>
-          <div style={{ width:28, height:28, borderRadius:14, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:500, background:"var(--surface-3)" }}>{user.name[0]}</div>
+          <div style={{ width:28, height:28, borderRadius:14, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:500, background:"var(--surface-3)" }}>{account.displayName?.[0] || "?"}</div>
           <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ fontSize:12, fontWeight:500, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{user.name.split(" ")[0]}</div>
-            <div className="font-mono" style={{ fontSize:10, color:"var(--text-3)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{user.title || "admin"}</div>
+            <div style={{ fontSize:12, fontWeight:500, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{account.displayName}</div>
+            <div className="font-mono" style={{ fontSize:10, color:"var(--text-3)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{account.role}</div>
           </div>
-          <button onClick={onLogout} style={{ padding:6, borderRadius:4, background:"none", border:"none", cursor:"pointer", color:"var(--text-3)" }} title="sign out">
+          {!isAdmin && <button onClick={onChangePassword} style={{ padding:4, borderRadius:4, background:"none", border:"none", cursor:"pointer", color:"var(--text-3)" }} title="change password"><Key style={{ width:13, height:13 }} /></button>}
+          <button onClick={onLogout} style={{ padding:4, borderRadius:4, background:"none", border:"none", cursor:"pointer", color:"var(--text-3)" }} title="sign out">
             <LogOut style={{ width:14, height:14 }} />
           </button>
         </div>
