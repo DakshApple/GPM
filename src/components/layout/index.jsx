@@ -25,8 +25,8 @@ export function Sidebar({ view, setView, account, counts, onLogout, onOpenPalett
 
   return (
     <aside style={{ width:220, flexShrink:0, display:"flex", flexDirection:"column", borderRight:"1px solid var(--border)", background:"var(--surface)" }}>
-      <div style={{ padding:16, display:"flex", alignItems:"center", gap:8, borderBottom:"1px solid var(--border)" }}>
-        <img src="/genartml-logo.png" alt="Genartml" style={{ height: 48, objectFit: "contain", marginLeft: -4 }} />
+      <div style={{ padding:16, display:"flex", alignItems:"center", justifyContent:"center", borderBottom:"1px solid var(--border)", height: 60, overflow:"hidden" }}>
+        <img src="/genartml-logo.png" alt="Genartml" style={{ width: 180, height: 180, objectFit: "contain", flexShrink:0 }} />
       </div>
       <button onClick={onOpenPalette} style={{ margin:"8px 8px 0", padding:"8px 10px", borderRadius:6, fontSize:11, display:"flex", alignItems:"center", gap:8, background:"var(--surface-2)", border:"1px solid var(--border)", color:"var(--text-2)", cursor:"pointer" }}>
         <Search style={{ width:14, height:14 }} />

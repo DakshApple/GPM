@@ -37,8 +37,8 @@ export function AuthScreen({ onAuth }) {
   return (
     <div style={{ minHeight:"100vh", display:"flex", background:"var(--bg)" }}>
       <div className="lg-left" style={{ display:"none", width:"50%", flexDirection:"column", justifyContent:"space-between", padding:48, borderRight:"1px solid var(--border)" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-          <img src="/genartml-logo.png" alt="Genartml" style={{ height: 56, objectFit: "contain", marginLeft: -12 }} />
+        <div style={{ height: 80, display:"flex", alignItems:"center", overflow:"hidden", marginLeft: -16 }}>
+          <img src="/genartml-logo.png" alt="Genartml" style={{ width: 240, height: 240, objectFit: "contain" }} />
         </div>
         <div>
           <h1 className="font-display" style={{ fontSize:48, lineHeight:1.08, fontWeight:600, letterSpacing:"-0.02em", marginBottom:24 }}>
@@ -57,8 +57,8 @@ export function AuthScreen({ onAuth }) {
       <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:32 }}>
         <div style={{ width:"100%", maxWidth:380 }}>
           <div style={{ marginBottom:32 }}>
-            <div className="lg-hide" style={{ display:"flex", alignItems:"center", gap:8, marginBottom:16 }}>
-              <img src="/genartml-logo.png" alt="Genartml" style={{ height: 48, objectFit: "contain", marginLeft: -10 }} />
+            <div className="lg-hide" style={{ height: 60, display:"flex", alignItems:"center", overflow:"hidden", marginBottom:16, marginLeft: -12 }}>
+              <img src="/genartml-logo.png" alt="Genartml" style={{ width: 180, height: 180, objectFit: "contain" }} />
             </div>
             <h2 className="font-display" style={{ fontSize:22, fontWeight:600, marginBottom:4 }}>welcome back</h2>
             <p style={{ fontSize:13, color:"var(--text-2)" }}>sign in to genartml project manager.</p>
