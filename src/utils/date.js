@@ -1,0 +1,10 @@
+export const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+export const toISO = (d) => { const x = new Date(d); return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}-${String(x.getDate()).padStart(2,"0")}`; };
+export const fromISO = (s) => { const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); };
+export const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+export const daysBetween = (a, b) => Math.round((fromISO(b) - fromISO(a)) / 86400000);
+export const fmtDate = (iso) => fromISO(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+export const fmtDateLong = (iso) => fromISO(iso).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+export const today = () => toISO(new Date());
+export const isPast = (iso) => fromISO(iso) < fromISO(today());
+export const clamp = (v, min, max) => Math.min(max, Math.max(min, v));

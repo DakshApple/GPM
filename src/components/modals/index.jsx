@@ -1,0 +1,222 @@
+import React, { useState, useEffect } from 'react';
+import { X, Plus, Check, Wand2 } from 'lucide-react';
+import { PALETTE } from '../../utils/constants';
+import { uid, toISO, addDays, fromISO, today } from '../../utils/date';
+import { suggestTaskBreakdown } from '../../services/heuristics';
+
+export function ProjectEditor({ draft, setDraft, employees, users }) {
+  const set = (k,v) => setDraft({...draft,[k]:v});
+  const toggleMember = (id) => set("memberIds", draft.memberIds.includes(id)?draft.memberIds.filter(x=>x!==id):[...draft.memberIds,id]);
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+      <div><label className="fl">name</label><input value={draft.name} onChange={e => set("name",e.target.value)} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }} /></div>
+      <div><label className="fl">client</label><input value={draft.client} onChange={e => set("client",e.target.value)} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }} /></div>
+      <div><label className="fl">description</label><textarea value={draft.description||""} onChange={e => set("description",e.target.value)} rows={2} style={{ width:"100%", marginTop:4, boxSizing:"border-box", resize:"none" }} /></div>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+        <div><label className="fl">start date</label><input type="date" value={draft.startDate} onChange={e => set("startDate",e.target.value)} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }} /></div>
+        <div><label className="fl">deadline</label><input type="date" value={draft.deadline} onChange={e => set("deadline",e.target.value)} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }} /></div>
+      </div>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12 }}>
+        <div><label className="fl">est. days</label><input type="number" min={1} value={draft.estimatedDays} onChange={e => set("estimatedDays",parseInt(e.target.value)||1)} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }} /></div>
+        <div><label className="fl">priority</label><select value={draft.priority} onChange={e => set("priority",e.target.value)} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }}><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select></div>
+        <div><label className="fl">status</label><select value={draft.status} onChange={e => set("status",e.target.value)} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }}><option value="planning">planning</option><option value="in_progress">in progress</option><option value="review">review</option><option value="delivered">delivered</option></select></div>
+      </div>
+      <div><label className="fl">owner</label><select value={draft.ownerId} onChange={e => set("ownerId",e.target.value)} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }}>{users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select></div>
+      <div><label className="fl">color</label>
+        <div style={{ marginTop:8, display:"flex", gap:8 }}>
+          {PALETTE.map(p => (
+            <button key={p.name} onClick={() => set("color",p.name)} style={{ width:32, height:32, borderRadius:6, display:"flex", alignItems:"center", justifyContent:"center", background:p.bg, border:`2px solid ${draft.color===p.name?p.ring:"transparent"}`, cursor:"pointer" }}>
+              <div style={{ width:12, height:12, borderRadius:2, background:p.ring }} />
+            </button>
+          ))}
+        </div>
+      </div>
+      <div><label className="fl">members</label>
+        <div style={{ marginTop:8, display:"flex", flexWrap:"wrap", gap:6 }}>
+          {employees.map(e => {
+            const on = draft.memberIds.includes(e.id);
+            return (
+              <button key={e.id} onClick={() => toggleMember(e.id)} style={{ display:"flex", alignItems:"center", gap:6, padding:"4px 8px", borderRadius:6, fontSize:12, cursor:"pointer", background: on?"rgba(245,166,35,.15)":"var(--surface-2)", border:`1px solid ${on?"var(--amber)":"var(--border)"}`, color: on?"var(--amber)":"var(--text)" }}>
+                <div style={{ width:16, height:16, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, fontWeight:500, background:"var(--surface-3)", color:"var(--text)" }}>{e.name[0]}</div>
+                {e.name}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function NewProjectModal({ open, onClose, employees, users, onCreate }) {
+  const [draft, setDraft] = useState(null);
+  useEffect(() => {
+    if (open) setDraft({
+      id:uid(), name:"", client:"", description:"",
+      ownerId: users[0]?.id || "", memberIds:[],
+      startDate:today(), deadline:toISO(addDays(new Date(),14)),
+      estimatedDays:10, priority:"medium", status:"planning", color:"amber",
+    });
+  }, [open, users]);
+  
+  if (!open || !draft) return null;
+  const create = () => { if (!draft.name || !draft.client) return; onCreate(draft); onClose(); };
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:50, display:"flex", alignItems:"center", justifyContent:"center", padding:24, background:"rgba(0,0,0,.6)" }} onClick={onClose}>
+      <div className="fade-in" style={{ width:"100%", maxWidth:480, borderRadius:8, background:"var(--bg)", border:"1px solid var(--border)" }} onClick={e => e.stopPropagation()}>
+        <div style={{ padding:"16px 24px", borderBottom:"1px solid var(--border)", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+          <span className="font-display" style={{ fontWeight:600, fontSize:15 }}>new project</span>
+          <button className="btn btn-ghost" onClick={onClose}><X style={{ width:16, height:16 }} /></button>
+        </div>
+        <div style={{ padding:24, maxHeight:"70vh", overflowY:"auto" }}>
+          <ProjectEditor draft={draft} setDraft={setDraft} employees={employees} users={users} />
+        </div>
+        <div style={{ padding:"16px 24px", borderTop:"1px solid var(--border)", display:"flex", justifyContent:"flex-end", gap:8 }}>
+          <button className="btn btn-secondary" onClick={onClose}>cancel</button>
+          <button className="btn btn-primary" onClick={create} disabled={!draft.name||!draft.client}><Plus style={{ width:14, height:14 }} /> create</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function TaskModal({ open, initial, projects, modules, employees, users, onClose, onCreate, onUpdate }) {
+  const isEdit = !!(initial && initial.id && initial.title);
+  const [draft, setDraft] = useState(null);
+  const [showBreakdown, setShowBreakdown] = useState(false);
+  const [breakdown, setBreakdown] = useState([]);
+
+  useEffect(() => {
+    if (!open) return;
+    setShowBreakdown(false); setBreakdown([]);
+    if (isEdit) {
+      setDraft({...initial});
+    } else {
+      setDraft({
+        id:uid(), projectId: initial?.projectId || projects[0]?.id || "",
+        moduleId: initial?.moduleId || "", title:"", description:"",
+        assigneeId: employees[0]?.id || "", priority:"medium", status:"todo",
+        deadline: toISO(addDays(new Date(), 7)), estimatedHours: 4,
+      });
+    }
+  }, [open, initial, projects, employees]);
+
+  if (!open || !draft) return null;
+  const set = (k,v) => setDraft({...draft,[k]:v});
+  const projectModules = modules.filter(m => m.projectId === draft.projectId);
+  const targetProject = projects.find(p => p.id === draft.projectId);
+
+  const suggest = () => { if (!draft.title) return; setBreakdown(suggestTaskBreakdown(draft.title)); setShowBreakdown(true); };
+  const acceptBreakdown = () => {
+    const parent = {...draft, id: uid()};
+    onCreate(parent);
+    breakdown.forEach((sub, i) => {
+      onCreate({
+        ...parent, id: uid(), title: sub,
+        deadline: toISO(addDays(fromISO(draft.deadline), -Math.floor((breakdown.length-i)*0.5))),
+      });
+    });
+    onClose();
+  };
+  
+  const submit = () => {
+    if (!draft.title || !draft.projectId) return;
+    if (targetProject && draft.deadline > targetProject.deadline) {
+      draft.deadline = targetProject.deadline;
+    }
+    if (isEdit) onUpdate(draft); else onCreate(draft);
+    onClose();
+  };
+
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:50, display:"flex", alignItems:"center", justifyContent:"center", padding:24, background:"rgba(0,0,0,.6)" }} onClick={onClose}>
+      <div className="fade-in" style={{ width:"100%", maxWidth:440, borderRadius:8, background:"var(--bg)", border:"1px solid var(--border)" }} onClick={e => e.stopPropagation()}>
+        <div style={{ padding:"16px 24px", borderBottom:"1px solid var(--border)", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+          <span className="font-display" style={{ fontWeight:600, fontSize:15 }}>{isEdit?"edit task":"new task"}</span>
+          <button className="btn btn-ghost" onClick={onClose}><X style={{ width:16, height:16 }} /></button>
+        </div>
+        <div style={{ padding:24, maxHeight:"70vh", overflowY:"auto", display:"flex", flexDirection:"column", gap:12 }}>
+          <div><label className="fl">title</label><input value={draft.title} onChange={e => set("title",e.target.value)} placeholder="what needs to happen?" style={{ width:"100%", marginTop:4, boxSizing:"border-box" }} autoFocus /></div>
+          <div><label className="fl">description</label><textarea value={draft.description||""} onChange={e => set("description",e.target.value)} rows={2} style={{ width:"100%", marginTop:4, boxSizing:"border-box", resize:"none" }} /></div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+            <div><label className="fl">project</label><select value={draft.projectId} onChange={e => set("projectId",e.target.value)} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }}>{projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
+            <div><label className="fl">module</label><select value={draft.moduleId||""} onChange={e => set("moduleId",e.target.value||null)} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }}><option value="">— none —</option>{projectModules.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+            <div><label className="fl">assignee</label><select value={draft.assigneeId} onChange={e => set("assigneeId",e.target.value)} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }}><optgroup label="admins">{users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</optgroup><optgroup label="team">{employees.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</optgroup></select></div>
+            <div><label className="fl">deadline</label><input type="date" value={draft.deadline} onChange={e => set("deadline",e.target.value)} max={targetProject?.deadline} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }} /></div>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12 }}>
+            <div><label className="fl">priority</label><select value={draft.priority} onChange={e => set("priority",e.target.value)} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }}><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select></div>
+            <div><label className="fl">status</label><select value={draft.status} onChange={e => set("status",e.target.value)} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }}><option value="todo">todo</option><option value="in_progress">in progress</option><option value="review">review</option><option value="done">done</option></select></div>
+            <div><label className="fl">est. hours</label><input type="number" min={1} value={draft.estimatedHours} onChange={e => set("estimatedHours",parseInt(e.target.value)||1)} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }} /></div>
+          </div>
+          {!isEdit && (
+            <div style={{ paddingTop:8 }}>
+              {!showBreakdown ? (
+                <button onClick={suggest} disabled={!draft.title} className="btn btn-secondary" style={{ width:"100%", justifyContent:"center" }}>
+                  <Wand2 style={{ width:14, height:14 }} /> suggest breakdown
+                </button>
+              ) : (
+                <div style={{ padding:12, borderRadius:6, background:"rgba(74,158,255,.06)", border:"1px solid rgba(74,158,255,.3)" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+                    <Wand2 style={{ width:14, height:14, color:"var(--blue)" }} />
+                    <span className="fl" style={{ color:"var(--blue)" }}>suggested subtasks</span>
+                  </div>
+                  <div style={{ display:"flex", flexDirection:"column", gap:4, marginBottom:12 }}>
+                    {breakdown.map((b,i) => (
+                      <div key={i} style={{ display:"flex", alignItems:"center", gap:8, fontSize:12 }}>
+                        <div style={{ width:4, height:4, borderRadius:2, background:"var(--blue)" }} />{b}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display:"flex", gap:8 }}>
+                    <button className="btn btn-primary" onClick={acceptBreakdown}><Check style={{ width:14, height:14 }} /> create all</button>
+                    <button className="btn btn-secondary" onClick={() => setShowBreakdown(false)}>dismiss</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <div style={{ padding:"16px 24px", borderTop:"1px solid var(--border)", display:"flex", justifyContent:"flex-end", gap:8 }}>
+          <button className="btn btn-secondary" onClick={onClose}>cancel</button>
+          <button className="btn btn-primary" onClick={submit} disabled={!draft.title||!draft.projectId}>
+            {isEdit ? <><Check style={{ width:14, height:14 }} /> save</> : <><Plus style={{ width:14, height:14 }} /> create</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function NewEmployeeModal({ open, onClose, onCreate }) {
+  const [name, setName] = useState("");
+  const [role, setRole] = useState("Developer");
+  const [skills, setSkills] = useState("");
+  
+  useEffect(() => { if (open) { setName(""); setRole("Developer"); setSkills(""); } }, [open]);
+  
+  if (!open) return null;
+  const create = () => { if (!name) return; onCreate({ id:uid(), name:name.trim(), role, capacity:8, skills:skills.split(",").map(s=>s.trim()).filter(Boolean) }); onClose(); };
+  
+  return (
+    <div style={{ position:"fixed", inset:0, zIndex:50, display:"flex", alignItems:"center", justifyContent:"center", padding:24, background:"rgba(0,0,0,.6)" }} onClick={onClose}>
+      <div className="fade-in" style={{ width:"100%", maxWidth:400, borderRadius:8, background:"var(--bg)", border:"1px solid var(--border)" }} onClick={e => e.stopPropagation()}>
+        <div style={{ padding:"16px 24px", borderBottom:"1px solid var(--border)", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+          <span className="font-display" style={{ fontWeight:600, fontSize:15 }}>add employee</span>
+          <button className="btn btn-ghost" onClick={onClose}><X style={{ width:16, height:16 }} /></button>
+        </div>
+        <div style={{ padding:24, display:"flex", flexDirection:"column", gap:12 }}>
+          <div><label className="fl">name</label><input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. rahul" style={{ width:"100%", marginTop:4, boxSizing:"border-box" }} autoFocus /></div>
+          <div><label className="fl">role</label><select value={role} onChange={e => setRole(e.target.value)} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }}><option>Developer</option><option>Designer</option><option>PM</option><option>Ops</option><option>Marketing</option></select></div>
+          <div><label className="fl">skills (comma-separated)</label><input value={skills} onChange={e => setSkills(e.target.value)} placeholder="e.g. frontend, react" style={{ width:"100%", marginTop:4, boxSizing:"border-box" }} /></div>
+        </div>
+        <div style={{ padding:"16px 24px", borderTop:"1px solid var(--border)", display:"flex", justifyContent:"flex-end", gap:8 }}>
+          <button className="btn btn-secondary" onClick={onClose}>cancel</button>
+          <button className="btn btn-primary" onClick={create} disabled={!name.trim()}><Plus style={{ width:14, height:14 }} /> add</button>
+        </div>
+      </div>
+    </div>
+  );
+}
