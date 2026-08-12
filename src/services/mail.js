@@ -3,7 +3,7 @@
 // To send emails to clients, you need to enable 'Autoresponse' in Web3Forms dashboard,
 // or switch to a transactional provider like EmailJS or Resend.
 
-const WEB3FORMS_ACCESS_KEY = "YOUR_WEB3FORMS_ACCESS_KEY"; // Replace with real key
+const WEB3FORMS_ACCESS_KEY = "17203923-0d98-420b-9da6-6389861baaf3"; // User provided key
 
 const sendEmail = async (subject, message, clientEmail) => {
   console.log(`[MAIL SYSTEM] Sending email to: ${clientEmail} | Subject: ${subject}`);
