@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield } from 'lucide-react';
+import { Shield, ArrowRight } from 'lucide-react';
 import { supabaseAuth } from '../services/auth';
 import { uid } from '../utils/date';
 import { KEYS } from '../utils/constants';
@@ -113,6 +113,11 @@ export function AuthScreen({ onAuth }) {
             {mode === "login" ? "no account?" : "have one?"}{" "}
             <button onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); setInfo(""); }} style={{ color:"var(--amber)", background:"none", border:"none", cursor:"pointer", textDecoration:"underline", fontSize:13 }}>
               {mode === "login" ? "create one" : "sign in"}
+            </button>
+          </div>
+          <div style={{ marginTop:16, textAlign:"center" }}>
+            <button type="button" onClick={() => window.location.hash = "#client"} style={{ color:"var(--text-2)", background:"none", border:"none", cursor:"pointer", fontSize:13, display:"flex", alignItems:"center", gap:6, margin:"0 auto" }}>
+               client portal login <ArrowRight style={{width:12,height:12}} />
             </button>
           </div>
           <div style={{ marginTop:32, paddingTop:20, borderTop:"1px solid var(--border)", display:"flex", alignItems:"center", gap:8 }}>

@@ -36,9 +36,15 @@ export function ProjectDetail({ project, projects, employees, users, updates, ta
       <div className="slide-in" style={{ width:"100%", maxWidth:640, height:"100%", overflowY:"auto", display:"flex", flexDirection:"column", background:"var(--bg)", borderLeft:"1px solid var(--border)" }} onClick={e => e.stopPropagation()}>
         {/* header */}
         <div style={{ position:"sticky", top:0, zIndex:10, padding:"16px 24px", borderBottom:"1px solid var(--border)", display:"flex", alignItems:"center", justifyContent:"space-between", background:"var(--bg)" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
-            <div style={{ width:8, height:8, borderRadius:2, background:c.ring, flexShrink:0 }} />
-            <span className="font-display" style={{ fontWeight:600, fontSize:15, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{project.name}</span>
+          <div style={{ display:"flex", alignItems:"center", gap:12, minWidth:0 }}>
+            <div style={{ width:12, height:12, borderRadius:2, background:c.ring, flexShrink:0 }} />
+            <div>
+              <div className="font-display" style={{ fontWeight:600, fontSize:16, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{project.name}</div>
+              <div className="font-mono" style={{ fontSize:10, color:"var(--text-3)", marginTop:2, display:"flex", alignItems:"center", gap:6 }}>
+                ID: {project.id}
+                <button onClick={() => { navigator.clipboard.writeText(project.id); alert("Project ID copied!"); }} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--blue)", fontSize:9, padding:0 }}>copy</button>
+              </div>
+            </div>
           </div>
           <div style={{ display:"flex", alignItems:"center", gap:4 }}>
             {project.status !== "delivered" && <button className="btn btn-ghost" onClick={() => { onMarkDelivered(project.id); onClose(); }}>mark delivered</button>}

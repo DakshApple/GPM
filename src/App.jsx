@@ -11,16 +11,20 @@ import { ProjectsView } from './views/ProjectsView';
 import { ProjectDetail } from './views/ProjectDetail';
 import { TasksView } from './views/TasksView';
 import { TeamView, SuggestionsView } from './views/index'; // The file I just created
-
+import { TicketsView } from './views/TicketsView';
 import { store } from './services/storage';
 import { supabaseAuth } from './services/auth';
 import { runSchedulerV2 } from './services/scheduler';
 import { KEYS, NEXT_STATUS } from './utils/constants';
 import { uid, toISO, addDays, today } from './utils/date';
 
+import { ClientLogin, ClientPortal } from './views/ClientPortal';
+import { api } from './services/db';
+
 export default function App() {
   const [init, setInit] = useState(false);
   const [user, setUser] = useState(null);
+  const [clientProject, setClientProject] = useState(null);
   
   const [users, setUsers] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -29,6 +33,7 @@ export default function App() {
   const [modules, setModules] = useState([]);
   const [updates, setUpdates] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
+  const [tickets, setTickets] = useState([]);
   
   const [view, setView] = useState("dashboard");
   const [openProjectId, setOpenProjectId] = useState(null);
@@ -46,22 +51,23 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
+        const uList = await api.getTable('gpm_users');
+        setUsers(uList);
         const session = await supabaseAuth.loadSession();
         if (session) {
-          const uList = (await store.get(KEYS.users)) || [];
           const found = uList.find(x => x.supabaseUid === session.user.id);
           if (found) setUser(found);
         }
       } catch (err) {
         console.error("Auth error:", err);
       }
-      setUsers(await store.get(KEYS.users, []));
-      setEmployees(await store.get(KEYS.employees, []));
-      setProjects(await store.get(KEYS.projects, []));
-      setTasks(await store.get(KEYS.tasks, []));
-      setModules(await store.get(KEYS.modules, []));
-      setUpdates(await store.get(KEYS.updates, []));
-      setSuggestions(await store.get(KEYS.suggestions, []));
+      setEmployees(await api.getTable('gpm_employees'));
+      setProjects(await api.getTable('gpm_projects'));
+      setTasks(await api.getTable('gpm_tasks'));
+      setModules(await api.getTable('gpm_modules'));
+      setUpdates(await api.getTable('gpm_updates'));
+      setSuggestions(await api.getTable('gpm_suggestions'));
+      setTickets(await api.getTable('gpm_tickets'));
       setInit(true);
     })();
   }, []);
@@ -70,76 +76,83 @@ export default function App() {
     if (!d.projects) return;
     const suggs = runSchedulerV2(d);
     setSuggestions(suggs);
-    store.set(KEYS.suggestions, suggs);
+    suggs.forEach(s => api.upsertRow('gpm_suggestions', s));
     if (suggs.length > 0 && suggs.filter(s => s.status==="pending").length > 0) {
       showToast(`${suggs.filter(s => s.status==="pending").length} AI suggestions pending`, "ai");
     }
   }, []);
 
-  const updateState = useCallback((key, val, dataObj = {}) => {
-    store.set(key, val);
-    if (key===KEYS.projects) setProjects(val);
-    else if (key===KEYS.tasks) setTasks(val);
-    else if (key===KEYS.modules) setModules(val);
-    else if (key===KEYS.employees) setEmployees(val);
-    else if (key===KEYS.updates) setUpdates(val);
-    
-    // Trigger scheduler
-    runScheduler({ projects: dataObj.p||(key===KEYS.projects?val:projects), employees: dataObj.e||(key===KEYS.employees?val:employees), tasks: dataObj.t||(key===KEYS.tasks?val:tasks), modules: dataObj.m||(key===KEYS.modules?val:modules), users });
-  }, [projects, employees, tasks, modules, users, runScheduler]);
-
   // Actions
-  const createProject = (p) => { const n = [...projects, p]; updateState(KEYS.projects, n, {p:n}); showToast(`project "${p.name}" created`); };
-  const updateProject = (p) => { const n = projects.map(x => x.id===p.id?p:x); updateState(KEYS.projects, n, {p:n}); showToast("project saved"); };
-  const deleteProject = (id) => { const n = projects.filter(x => x.id!==id); updateState(KEYS.projects, n, {p:n}); if(openProjectId===id)setOpenProjectId(null); showToast("project deleted"); };
-  const markProjectDelivered = (id) => { const n = projects.map(x => x.id===id?{...x,status:"delivered",deadline:today()}:x); updateState(KEYS.projects, n, {p:n}); showToast("project delivered \uD83C\uDF89"); };
+  const createProject = async (p) => { await api.upsertRow('gpm_projects', p); const n = [...projects, p]; setProjects(n); runScheduler({ projects:n, employees, tasks, modules, users }); showToast(`project "${p.name}" created`); };
+  const updateProject = async (p) => { await api.upsertRow('gpm_projects', p); const n = projects.map(x => x.id===p.id?p:x); setProjects(n); runScheduler({ projects:n, employees, tasks, modules, users }); showToast("project saved"); };
+  const deleteProject = async (id) => { await api.deleteRow('gpm_projects', id); const n = projects.filter(x => x.id!==id); setProjects(n); if(openProjectId===id)setOpenProjectId(null); runScheduler({ projects:n, employees, tasks, modules, users }); showToast("project deleted"); };
+  const markProjectDelivered = async (id) => { const p = projects.find(x=>x.id===id); if(!p)return; const updated = {...p, status:"delivered", deadline:today()}; await api.upsertRow('gpm_projects', updated); const n = projects.map(x => x.id===id?updated:x); setProjects(n); runScheduler({ projects:n, employees, tasks, modules, users }); showToast("project delivered 🎉"); };
   
-  const createTask = (t) => { const n = [...tasks, t]; updateState(KEYS.tasks, n, {t:n}); showToast(`task "${t.title}" added`); };
-  const updateTask = (t) => { const n = tasks.map(x => x.id===t.id?t:x); updateState(KEYS.tasks, n, {t:n}); };
-  const deleteTask = (id) => { const n = tasks.filter(x => x.id!==id); updateState(KEYS.tasks, n, {t:n}); };
-  const advanceTask = (id) => {
+  const createTask = async (t) => { await api.upsertRow('gpm_tasks', t); const n = [...tasks, t]; setTasks(n); runScheduler({ projects, employees, tasks:n, modules, users }); showToast(`task "${t.title}" added`); };
+  const updateTask = async (t) => { await api.upsertRow('gpm_tasks', t); const n = tasks.map(x => x.id===t.id?t:x); setTasks(n); runScheduler({ projects, employees, tasks:n, modules, users }); };
+  const deleteTask = async (id) => { await api.deleteRow('gpm_tasks', id); const n = tasks.filter(x => x.id!==id); setTasks(n); runScheduler({ projects, employees, tasks:n, modules, users }); };
+  const advanceTask = async (id) => {
     const t = tasks.find(x => x.id === id); if(!t || t.status==="done") return;
     const next = NEXT_STATUS[t.status];
-    const n = tasks.map(x => x.id===id ? {...x, status:next} : x);
-    updateState(KEYS.tasks, n, {t:n});
+    const updated = {...t, status:next};
+    await api.upsertRow('gpm_tasks', updated);
+    const n = tasks.map(x => x.id===id ? updated : x);
+    setTasks(n); runScheduler({ projects, employees, tasks:n, modules, users });
   };
   
-  const createModule = (m) => { const n = [...modules, m]; updateState(KEYS.modules, n, {m:n}); };
-  const updateModuleObj = (m) => { const n = modules.map(x => x.id===m.id?m:x); updateState(KEYS.modules, n, {m:n}); };
-  const deleteModule = (id) => { const n = modules.filter(x => x.id!==id); updateState(KEYS.modules, n, {m:n}); };
+  const createModule = async (m) => { await api.upsertRow('gpm_modules', m); const n = [...modules, m]; setModules(n); runScheduler({ projects, employees, tasks, modules:n, users }); };
+  const updateModuleObj = async (m) => { await api.upsertRow('gpm_modules', m); const n = modules.map(x => x.id===m.id?m:x); setModules(n); runScheduler({ projects, employees, tasks, modules:n, users }); };
+  const deleteModule = async (id) => { await api.deleteRow('gpm_modules', id); const n = modules.filter(x => x.id!==id); setModules(n); runScheduler({ projects, employees, tasks, modules:n, users }); };
   
-  const addEmployee = (e) => { const n = [...employees, e]; updateState(KEYS.employees, n, {e:n}); showToast(`added ${e.name}`); };
-  const addUpdate = (u) => { const n = [...updates, u]; updateState(KEYS.updates, n); };
+  const addEmployee = async (e) => { await api.upsertRow('gpm_employees', e); const n = [...employees, e]; setEmployees(n); runScheduler({ projects, employees:n, tasks, modules, users }); showToast(`added ${e.name}`); };
+  const addUpdate = async (u) => { await api.upsertRow('gpm_updates', u); setUpdates([...updates, u]); };
 
-  const applySuggestion = (id) => {
+  const applySuggestion = async (id) => {
     const s = suggestions.find(x => x.id === id); if(!s) return;
+    let nP = projects, nT = tasks, nM = modules;
     if (s.action === "reschedule_task") {
-      const n = tasks.map(t => t.id === s.taskId ? {...t, deadline:s.proposedTaskDeadline} : t);
-      updateState(KEYS.tasks, n, {t:n});
+      const target = tasks.find(t=>t.id===s.taskId); if(target) { const u = {...target, deadline:s.proposedTaskDeadline}; await api.upsertRow('gpm_tasks', u); nT = tasks.map(t => t.id === s.taskId ? u : t); setTasks(nT); }
     } else if (s.action === "reschedule_module") {
-      const n = modules.map(m => m.id === s.moduleId ? {...m, deadline:s.proposedModuleDeadline} : m);
-      updateState(KEYS.modules, n, {m:n});
+      const target = modules.find(m=>m.id===s.moduleId); if(target) { const u = {...target, deadline:s.proposedModuleDeadline}; await api.upsertRow('gpm_modules', u); nM = modules.map(m => m.id === s.moduleId ? u : m); setModules(nM); }
     } else if (s.action === "reschedule_project") {
-      const n = projects.map(p => p.id === s.projectId ? {...p, startDate:s.proposedStart, deadline:s.proposedDeadline} : p);
-      updateState(KEYS.projects, n, {p:n});
+      const target = projects.find(p=>p.id===s.projectId); if(target) { const u = {...target, startDate:s.proposedStart, deadline:s.proposedDeadline}; await api.upsertRow('gpm_projects', u); nP = projects.map(p => p.id === s.projectId ? u : p); setProjects(nP); }
     } else if (s.action === "reassign_task") {
-      const n = tasks.map(t => t.id === s.taskId ? {...t, assigneeId:s.suggestedAssigneeId} : t);
-      updateState(KEYS.tasks, n, {t:n});
+      const target = tasks.find(t=>t.id===s.taskId); if(target) { const u = {...target, assigneeId:s.suggestedAssigneeId}; await api.upsertRow('gpm_tasks', u); nT = tasks.map(t => t.id === s.taskId ? u : t); setTasks(nT); }
     }
-    const ns = suggestions.map(x => x.id === id ? {...x, status:"applied"} : x);
-    setSuggestions(ns); store.set(KEYS.suggestions, ns);
+    const updatedS = {...s, status:"applied"};
+    await api.upsertRow('gpm_suggestions', updatedS);
+    const ns = suggestions.map(x => x.id === id ? updatedS : x);
+    setSuggestions(ns);
+    runScheduler({ projects:nP, employees, tasks:nT, modules:nM, users });
     showToast("suggestion applied", "ai");
   };
   
-  const dismissSuggestion = (id) => {
-    const ns = suggestions.map(x => x.id === id ? {...x, status:"dismissed"} : x);
-    setSuggestions(ns); store.set(KEYS.suggestions, ns);
+  const dismissSuggestion = async (id) => {
+    const s = suggestions.find(x => x.id === id); if(!s) return;
+    const updatedS = {...s, status:"dismissed"};
+    await api.upsertRow('gpm_suggestions', updatedS);
+    setSuggestions(suggestions.map(x => x.id === id ? updatedS : x));
   };
 
   useEffect(() => {
     const down = (e) => { if(e.key==="k" && (e.metaKey||e.ctrlKey)) { e.preventDefault(); setShowPalette(true); } };
     document.addEventListener("keydown", down); return () => document.removeEventListener("keydown", down);
   }, []);
+
+  const logout = async () => { await supabaseAuth.clearSession(); setUser(null); };
+
+  useEffect(() => {
+    const handleHash = () => {
+      if (window.location.hash === "#client") {
+        if (!clientProject) setClientProject("login");
+      } else {
+        if (clientProject) setClientProject(null);
+      }
+    };
+    window.addEventListener("hashchange", handleHash);
+    handleHash();
+    return () => window.removeEventListener("hashchange", handleHash);
+  }, [clientProject]);
 
   const actions = useMemo(() => [
     { label:"new project", icon:FolderKanban, run:() => setShowNP(true) },
@@ -153,16 +166,21 @@ export default function App() {
     return [...v, ...p];
   }, [projects]);
 
-  if (!init) return null;
-  if (!user) return <AuthScreen onAuth={setUser} />;
-
   const counts = {
     projects: projects.filter(p=>p.status!=="delivered").length,
     tasks: tasks.filter(t=>t.status!=="done").length,
     suggestions: suggestions.filter(s=>s.status==="pending").length,
+    tickets: tickets.filter(t=>t.status==="open").length,
   };
 
-  const logout = async () => { await supabaseAuth.clearSession(); setUser(null); };
+  if (!init) return <div style={{height:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:"var(--bg)", color:"var(--text)"}}>...</div>;
+  
+  if (clientProject) {
+    if (clientProject === "login") return <ClientLogin onLogin={p => setClientProject(p)} />;
+    return <ClientPortal project={clientProject} onLogout={() => { setClientProject(null); window.location.hash=""; }} />;
+  }
+
+  if (!user) return <AuthScreen onAuth={setUser} />;
 
   return (
     <div style={{ display:"flex", height:"100vh", overflow:"hidden" }}>
@@ -175,6 +193,7 @@ export default function App() {
       {view === "tasks" && <TasksView tasks={tasks} projects={projects} employees={employees} users={users} currentUser={user} openTaskById={(id) => setTaskModalInitial(tasks.find(x=>x.id===id))} onNewTask={setTaskModalInitial} onAdvanceTask={advanceTask} />}
       {view === "team" && <TeamView users={users} employees={employees} projects={projects} tasks={tasks} onNewEmployee={() => setShowNE(true)} />}
       {view === "ai" && <SuggestionsView suggestions={suggestions} applySuggestion={applySuggestion} dismissSuggestion={dismissSuggestion} />}
+      {view === "tickets" && <TicketsView tickets={tickets} projects={projects} onResolve={async (id) => { const tk = tickets.find(x=>x.id===id); if(tk){ await api.upsertRow('gpm_tickets', {...tk, status:'resolved'}); setTickets(tickets.map(x=>x.id===id?{...tk,status:'resolved'}:x)); } }} onConvertToTask={(tk) => { setTaskModalInitial({ projectId: tk.projectId, title: tk.message }); }} />}
 
       {openProjectId && <ProjectDetail project={projects.find(p=>p.id===openProjectId)} projects={projects} employees={employees} users={users} updates={updates} tasks={tasks} modules={modules} onClose={()=>setOpenProjectId(null)} onSave={updateProject} onDelete={deleteProject} onAddUpdate={addUpdate} onMarkDelivered={markProjectDelivered} onCreateTask={createTask} onEditTask={updateTask} onAdvanceTask={advanceTask} onDeleteTask={deleteTask} onCreateModule={createModule} onUpdateModule={updateModuleObj} onDeleteModule={deleteModule} />}
 

@@ -16,6 +16,8 @@ export function ProjectEditor({ draft, setDraft, employees, users }) {
         <div><label className="fl">start date</label><input type="date" value={draft.startDate} onChange={e => set("startDate",e.target.value)} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }} /></div>
         <div><label className="fl">deadline</label><input type="date" value={draft.deadline} onChange={e => set("deadline",e.target.value)} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }} /></div>
       </div>
+      <div><label className="fl">client portal password (optional)</label><input type="text" value={draft.portalPassword||""} onChange={e => set("portalPassword",e.target.value)} placeholder="give this to client to login" style={{ width:"100%", marginTop:4, boxSizing:"border-box" }} /></div>
+
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12 }}>
         <div><label className="fl">est. days</label><input type="number" min={1} value={draft.estimatedDays} onChange={e => set("estimatedDays",parseInt(e.target.value)||1)} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }} /></div>
         <div><label className="fl">priority</label><select value={draft.priority} onChange={e => set("priority",e.target.value)} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }}><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select></div>
@@ -83,6 +85,7 @@ export function NewProjectModal({ open, onClose, employees, users, onCreate }) {
 export function TaskModal({ open, initial, projects, modules, employees, users, onClose, onCreate, onUpdate }) {
   const isEdit = !!(initial && initial.id && initial.title);
   const [draft, setDraft] = useState(null);
+  const [tab, setTab] = useState("technical");
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [breakdown, setBreakdown] = useState([]);
 
@@ -136,9 +139,34 @@ export function TaskModal({ open, initial, projects, modules, employees, users, 
           <button className="btn btn-ghost" onClick={onClose}><X style={{ width:16, height:16 }} /></button>
         </div>
         <div style={{ padding:24, maxHeight:"70vh", overflowY:"auto", display:"flex", flexDirection:"column", gap:12 }}>
-          <div><label className="fl">title</label><input value={draft.title} onChange={e => set("title",e.target.value)} placeholder="what needs to happen?" style={{ width:"100%", marginTop:4, boxSizing:"border-box" }} autoFocus /></div>
-          <div><label className="fl">description</label><textarea value={draft.description||""} onChange={e => set("description",e.target.value)} rows={2} style={{ width:"100%", marginTop:4, boxSizing:"border-box", resize:"none" }} /></div>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+          <div style={{ display:"flex", gap:16, borderBottom:"1px solid var(--border)", marginBottom:12 }}>
+            <button type="button" onClick={() => setTab("technical")} style={{ paddingBottom:8, background:"none", border:"none", borderBottom:`2px solid ${tab==="technical"?"var(--amber)":"transparent"}`, color:tab==="technical"?"var(--amber)":"var(--text-2)", fontWeight:tab==="technical"?500:400, cursor:"pointer" }}>technical</button>
+            <button type="button" onClick={() => setTab("client")} style={{ paddingBottom:8, background:"none", border:"none", borderBottom:`2px solid ${tab==="client"?"var(--blue)":"transparent"}`, color:tab==="client"?"var(--blue)":"var(--text-2)", fontWeight:tab==="client"?500:400, cursor:"pointer" }}>client portal</button>
+          </div>
+
+          {tab === "technical" ? (
+            <>
+              <div><label className="fl">title</label><input value={draft.title} onChange={e => set("title",e.target.value)} placeholder="what needs to happen?" style={{ width:"100%", marginTop:4, boxSizing:"border-box" }} autoFocus /></div>
+              <div><label className="fl">description</label><textarea value={draft.description||""} onChange={e => set("description",e.target.value)} rows={2} style={{ width:"100%", marginTop:4, boxSizing:"border-box", resize:"none" }} /></div>
+            </>
+          ) : (
+            <>
+              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+                <input type="checkbox" checked={draft.isClientVisible||false} onChange={e => set("isClientVisible",e.target.checked)} id="cb_visible" />
+                <label htmlFor="cb_visible" style={{ fontSize:13 }}>visible to client in portal</label>
+              </div>
+              <div style={{ opacity: draft.isClientVisible ? 1 : 0.5, pointerEvents: draft.isClientVisible ? "auto" : "none" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
+                  <label className="fl">client-facing title</label>
+                  <button type="button" onClick={() => { set("clientTitle", draft.title); set("clientDescription", "We are working on this update."); }} style={{ background:"none", border:"none", color:"var(--blue)", fontSize:11, cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}><Wand2 style={{width:12,height:12}}/> auto-generate</button>
+                </div>
+                <input value={draft.clientTitle||""} onChange={e => set("clientTitle",e.target.value)} placeholder="e.g. Updating User Profiles" style={{ width:"100%", marginBottom:12, boxSizing:"border-box" }} />
+                
+                <label className="fl">client description</label>
+                <textarea value={draft.clientDescription||""} onChange={e => set("clientDescription",e.target.value)} rows={2} style={{ width:"100%", marginTop:4, boxSizing:"border-box", resize:"none" }} />
+              </div>
+            </>
+          )}          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
             <div><label className="fl">project</label><select value={draft.projectId} onChange={e => set("projectId",e.target.value)} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }}>{projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
             <div><label className="fl">module</label><select value={draft.moduleId||""} onChange={e => set("moduleId",e.target.value||null)} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }}><option value="">— none —</option>{projectModules.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div>
           </div>

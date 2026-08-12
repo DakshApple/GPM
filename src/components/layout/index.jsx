@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, Command, LayoutDashboard, Calendar, Layers, FolderKanban, ListTodo, Users, Sparkles, LogOut } from 'lucide-react';
+import { Search, Command, LayoutDashboard, Calendar, Layers, FolderKanban, ListTodo, Users, Sparkles, LogOut, MessageSquare } from 'lucide-react';
 
 export function Sidebar({ view, setView, user, counts, onLogout, onOpenPalette }) {
   const items = [
@@ -8,6 +8,7 @@ export function Sidebar({ view, setView, user, counts, onLogout, onOpenPalette }
     { id:"timeline",  label:"timeline",       icon: Layers },
     { id:"projects",  label:"projects",       icon: FolderKanban, count: counts.projects },
     { id:"tasks",     label:"tasks",          icon: ListTodo,     count: counts.tasks },
+    { id:"tickets",   label:"client tickets", icon: MessageSquare,count: counts.tickets, accent: true },
     { id:"team",      label:"team",           icon: Users },
     { id:"ai",        label:"ai suggestions", icon: Sparkles,     count: counts.suggestions, accent: true },
   ];
