@@ -6,8 +6,8 @@ import { Field } from '../components/ui';
 import { ProjectEditor } from '../components/modals';
 import { suggestModules } from '../services/heuristics';
 
-export function ProjectDetail({ project, projects, employees, users, updates, tasks, modules,
-  onClose, onSave, onDelete, onAddUpdate, onMarkDelivered,
+export function ProjectDetail({ project, projects, employees, users, updates, tasks, modules, deliverables = [],
+  onClose, onSave, onDelete, onAddUpdate, onAddDeliverable, onDeleteDeliverable, onMarkDelivered,
   onCreateTask, onEditTask, onAdvanceTask, onDeleteTask,
   onCreateModule, onUpdateModule, onDeleteModule }) {
   const [tab, setTab] = useState("overview");
@@ -28,6 +28,7 @@ export function ProjectDetail({ project, projects, employees, users, updates, ta
     { id:"overview", label:"overview", icon:FolderKanban },
     { id:"modules",  label:"modules",  icon:Package,       count:projModules.length },
     { id:"tasks",    label:"tasks",    icon:ListTodo,      count:projTasks.filter(t=>t.status!=="done").length },
+    { id:"vault",    label:"vault",    icon:FolderKanban,  count:deliverables?.filter(d=>d.projectId===project.id).length },
     { id:"updates",  label:"updates",  icon:MessageSquare, count:projUpdates.length },
   ];
   
@@ -107,6 +108,7 @@ export function ProjectDetail({ project, projects, employees, users, updates, ta
           ))}
           {tab==="modules" && <ModulesTab project={project} modules={projModules} tasks={projTasks} onCreateModule={onCreateModule} onUpdateModule={onUpdateModule} onDeleteModule={onDeleteModule} />}
           {tab==="tasks" && <TasksKanban tasks={projTasks} employees={employees} users={users} modules={projModules} onNew={() => onCreateTask({projectId:project.id})} onEdit={onEditTask} onAdvance={onAdvanceTask} onDelete={onDeleteTask} />}
+          {tab==="vault" && <VaultTab project={project} deliverables={deliverables.filter(d=>d.projectId===project.id)} onAddDeliverable={onAddDeliverable} onDeleteDeliverable={onDeleteDeliverable} />}
           {tab==="updates" && <UpdatesTab project={project} updates={projUpdates} onAddUpdate={onAddUpdate} />}
         </div>
       </div>
@@ -325,6 +327,60 @@ function UpdatesTab({ project, updates, onAddUpdate }) {
           </div>
         ))}
         {updates.length===0 && <div style={{ fontSize:12, padding:"32px 0", textAlign:"center", color:"var(--text-3)" }}>no updates yet.</div>}
+      </div>
+    </div>
+  );
+}
+
+export function VaultTab({ project, deliverables, onAddDeliverable, onDeleteDeliverable }) {
+  const [draft, setDraft] = useState({ title:"", url:"", type:"link" });
+  
+  const submit = () => {
+    if (!draft.title || !draft.url) return;
+    onAddDeliverable({
+      id: uid(), projectId: project.id, title: draft.title, url: draft.url,
+      type: draft.type, createdAt: new Date().toISOString()
+    });
+    setDraft({ title:"", url:"", type:"link" });
+  };
+  
+  return (
+    <div>
+      <div style={{ padding:16, borderRadius:8, marginBottom:24, background:"var(--surface)", border:"1px solid var(--border-strong)", display:"flex", flexDirection:"column", gap:12 }}>
+        <div style={{ fontSize:14, fontWeight:500 }}>Add Deliverable / Asset</div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+          <div><label className="fl">Title</label><input value={draft.title} onChange={e => setDraft({...draft, title:e.target.value})} placeholder="e.g. Figma Design" style={{ width:"100%", marginTop:4, boxSizing:"border-box" }} /></div>
+          <div>
+            <label className="fl">Type</label>
+            <select value={draft.type} onChange={e => setDraft({...draft, type:e.target.value})} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }}>
+              <option value="link">Link / URL</option>
+              <option value="figma">Figma</option>
+              <option value="github">GitHub repo</option>
+              <option value="drive">Google Drive</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label className="fl">URL / Link</label>
+          <input value={draft.url} onChange={e => setDraft({...draft, url:e.target.value})} placeholder="https://..." style={{ width:"100%", marginTop:4, boxSizing:"border-box" }} />
+        </div>
+        <div style={{ display:"flex", justifyContent:"flex-end" }}>
+          <button className="btn btn-primary" onClick={submit} disabled={!draft.title || !draft.url}><Plus style={{ width:14, height:14 }} /> add to vault</button>
+        </div>
+      </div>
+      
+      <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+        {deliverables.map(d => (
+          <div key={d.id} style={{ padding:16, borderRadius:8, background:"var(--surface)", border:"1px solid var(--border)", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            <div>
+              <div style={{ fontSize:14, fontWeight:500, marginBottom:4 }}>{d.title}</div>
+              <div className="font-mono" style={{ fontSize:11, color:"var(--text-3)", marginBottom:8 }}>{new Date(d.createdAt).toLocaleDateString()} · {d.type}</div>
+              <a href={d.url} target="_blank" rel="noreferrer" style={{ fontSize:12, color:"var(--blue)", textDecoration:"none" }}>{d.url}</a>
+            </div>
+            <button onClick={() => { if(confirm("delete deliverable?")) onDeleteDeliverable(d.id); }} style={{ padding:8, background:"none", border:"none", color:"var(--red)", cursor:"pointer" }}><Trash2 style={{ width:16, height:16 }} /></button>
+          </div>
+        ))}
+        {deliverables.length === 0 && <div style={{ textAlign:"center", padding:"48px 0", color:"var(--text-3)", fontSize:13 }}>no deliverables added yet.</div>}
       </div>
     </div>
   );

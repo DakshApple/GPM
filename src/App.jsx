@@ -41,6 +41,7 @@ export default function App() {
   const [suggestions, setSuggestions] = useState([]);
   const [allTickets, setAllTickets] = useState([]);
   const [accounts, setAccounts] = useState([]);
+  const [deliverables, setDeliverables] = useState([]);
   
   const [view, setView] = useState("dashboard");
   const [openProjectId, setOpenProjectId] = useState(null);
@@ -107,6 +108,7 @@ export default function App() {
       setUpdates(await api.getTable('gpm_updates'));
       setSuggestions(await api.getTable('gpm_suggestions'));
       setAllTickets(await api.getTable('gpm_tickets'));
+      setDeliverables(await api.getTable('gpm_deliverables'));
       setInit(true);
     })();
   }, []);
@@ -134,6 +136,7 @@ export default function App() {
     const t = allTasks.find(x => x.id === id); if(!t || t.status==="done") return;
     const next = NEXT_STATUS[t.status];
     const updated = {...t, status:next};
+    if (next === "done") updated.completedAt = new Date().toISOString();
     await api.upsertRow('gpm_tasks', updated);
     const n = allTasks.map(x => x.id===id ? updated : x);
     setAllTasks(n); runScheduler({ projects:allProjects, employees, tasks:n, modules, users });
@@ -141,6 +144,7 @@ export default function App() {
   const updateTaskStatus = async (id, newStatus) => {
     const t = allTasks.find(x => x.id === id); if(!t || t.status === newStatus) return;
     const updated = {...t, status: newStatus};
+    if (newStatus === "done") updated.completedAt = new Date().toISOString();
     await api.upsertRow('gpm_tasks', updated);
     const n = allTasks.map(x => x.id===id ? updated : x);
     setAllTasks(n); runScheduler({ projects:allProjects, employees, tasks:n, modules, users });
@@ -152,6 +156,9 @@ export default function App() {
   
   const addEmployee = async (e) => { await api.upsertRow('gpm_employees', e); const n = [...employees, e]; setEmployees(n); runScheduler({ projects:allProjects, employees:n, tasks:allTasks, modules, users }); showToast(`added ${e.name}`); };
   const addUpdate = async (u) => { await api.upsertRow('gpm_updates', u); setUpdates([...updates, u]); };
+  
+  const addDeliverable = async (d) => { await api.upsertRow('gpm_deliverables', d); setDeliverables([...deliverables, d]); };
+  const deleteDeliverable = async (id) => { await api.deleteRow('gpm_deliverables', id); setDeliverables(deliverables.filter(x => x.id !== id)); };
 
   // Account management
   const createAccount = async (acc) => { await api.upsertRow('gpm_accounts', acc); setAccounts([...accounts, acc]); showToast(`account "${acc.username}" created`); };
@@ -277,7 +284,7 @@ export default function App() {
       {view === "tickets" && hasFeature("tickets") && <TicketsView tickets={tickets} projects={projects} onResolve={resolveTicket} onConvertToTask={(tk) => { setTaskModalInitial({ projectId: tk.projectId, title: tk.message, priority: tk.priority, deadline: tk.deadline, clientTitle: tk.message, isClientVisible: true }); }} />}
       {view === "manage_users" && isAdmin && <UserManagement accounts={accounts} projects={allProjects} onCreateAccount={createAccount} onUpdateAccount={updateAccount} onDeleteAccount={deleteAccount} />}
 
-      {openProjectId && <ProjectDetail project={projects.find(p=>p.id===openProjectId)} projects={projects} employees={employees} users={users} updates={updates} tasks={tasks} modules={modules} onClose={()=>setOpenProjectId(null)} onSave={updateProject} onDelete={deleteProject} onAddUpdate={addUpdate} onMarkDelivered={markProjectDelivered} onCreateTask={createTask} onEditTask={updateTask} onAdvanceTask={advanceTask} onDeleteTask={deleteTask} onCreateModule={createModule} onUpdateModule={updateModuleObj} onDeleteModule={deleteModule} />}
+      {openProjectId && <ProjectDetail project={projects.find(p=>p.id===openProjectId)} projects={projects} employees={employees} users={users} updates={updates} tasks={tasks} modules={modules} deliverables={deliverables} onClose={()=>setOpenProjectId(null)} onSave={updateProject} onDelete={deleteProject} onAddUpdate={addUpdate} onAddDeliverable={addDeliverable} onDeleteDeliverable={deleteDeliverable} onMarkDelivered={markProjectDelivered} onCreateTask={createTask} onEditTask={updateTask} onAdvanceTask={advanceTask} onDeleteTask={deleteTask} onCreateModule={createModule} onUpdateModule={updateModuleObj} onDeleteModule={deleteModule} />}
 
       {isAdmin && <NewProjectModal open={showNP} onClose={()=>setShowNP(false)} employees={employees} users={users} onCreate={createProject} />}
       <TaskModal open={!!taskModalInitial} initial={taskModalInitial} projects={projects.filter(p=>p.status!=="delivered")} modules={modules} employees={employees} users={users} onClose={()=>setTaskModalInitial(null)} onCreate={createTask} onUpdate={updateTask} />
