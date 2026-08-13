@@ -21,7 +21,7 @@ const sendEmail = async (subject, htmlMessage, recipientEmail) => {
           "Authorization": `Bearer ${RESEND_KEY}`
         },
         body: JSON.stringify({
-          from: "GPM Team <onboarding@resend.dev>",
+          from: "GPM Notifications <notifications@updates.genartml.online>",
           to: [toEmail],
           subject: subject,
           html: htmlMessage,
