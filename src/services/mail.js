@@ -7,7 +7,6 @@ const RESEND_KEY = ["re_", "ePNo1ufw_", "HHoWhbQFehS3AuAvqGKcKpEz"].join("");
 const sendEmail = async (subject, htmlMessage, recipientEmail) => {
   if (!recipientEmail) return;
   
-  // If array of emails passed, send to each or comma-separated
   const recipients = Array.isArray(recipientEmail) ? recipientEmail.filter(Boolean) : [recipientEmail];
   if (recipients.length === 0) return;
 
@@ -33,7 +32,12 @@ const sendEmail = async (subject, htmlMessage, recipientEmail) => {
       if (res.ok) {
         console.log(`[MAIL] ✅ Sent successfully to ${toEmail}:`, data);
       } else {
-        console.warn(`[MAIL] ⚠️ Resend response for ${toEmail}:`, data);
+        if (data.statusCode === 403 || data.name === 'validation_error') {
+          console.error(`[MAIL] ⛔ Resend 403 Restriction: ${data.message}`);
+          console.warn(`[MAIL] 💡 Tip: Resend test keys can ONLY send emails to the account owner's email (ys77p8pfvm@privaterelay.appleid.com). Verify your domain at resend.com/domains to send to any recipient.`);
+        } else {
+          console.warn(`[MAIL] ⚠️ Resend error for ${toEmail}:`, data);
+        }
       }
     } catch (err) {
       console.error(`[MAIL] ❌ Network error sending to ${toEmail}:`, err);
@@ -105,9 +109,15 @@ export const mail = {
 
     try {
       const accounts = await api.getTable('gpm_accounts');
-      const adminEmails = accounts.filter(a => a.role === 'admin' && (a.email || a.notificationEmail)).map(a => a.email || a.notificationEmail);
+      const adminEmails = accounts
+        .filter(a => a.role === 'admin')
+        .map(a => a.notificationEmail || a.email)
+        .filter(Boolean);
+      
       if (adminEmails.length > 0) {
         await sendEmail(subject, html, adminEmails);
+      } else {
+        console.warn("[MAIL] No admin notification emails configured in gpm_accounts.");
       }
     } catch(e) {
       console.error("Failed to notify admins", e);
