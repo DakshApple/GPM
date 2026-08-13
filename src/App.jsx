@@ -142,7 +142,7 @@ export default function App() {
       await fetchData();
       setInit(true);
     })();
-    const interval = setInterval(fetchData, 3 * 60 * 1000);
+    const interval = setInterval(fetchData, 15 * 1000); // Poll every 15 seconds for near real-time sync
     return () => clearInterval(interval);
   }, []);
 

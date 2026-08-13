@@ -86,7 +86,7 @@ export function ClientPortal({ project, onLogout }) {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 3 * 60 * 1000);
+    const interval = setInterval(fetchData, 15 * 1000); // 15 seconds
     return () => clearInterval(interval);
   }, [project.id]);
 
