@@ -217,102 +217,112 @@ export function UserManagement({ accounts = [], projects = [], onCreateAccount, 
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
-            {/* Feature Access */}
-            <div>
-              <h3 className="font-display" style={{ fontSize: '15px', marginBottom: '16px', color: 'var(--text)' }}>Feature Access</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {ALL_FEATURES.map(feature => {
-                  const isChecked = formData.featureAccess.includes(feature.id);
-                  const warning = featureWarnings[feature.id];
-                  
-                  return (
-                    <div key={feature.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'var(--bg)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', margin: 0 }}>
-                        <div style={{
-                          width: '18px', height: '18px', borderRadius: '4px', border: '1px solid',
-                          borderColor: isChecked ? 'var(--blue)' : 'var(--border)',
-                          background: isChecked ? 'var(--blue)' : 'transparent',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center'
-                        }}>
-                          {isChecked && <Check size={12} color="#fff" />}
-                        </div>
-                        <input
-                          type="checkbox"
-                          style={{ display: 'none' }}
-                          checked={isChecked}
-                          onChange={() => handleToggleFeature(feature.id)}
-                        />
-                        <span style={{ fontSize: '14px' }}>{feature.label}</span>
-                      </label>
-                      
-                      {warning && warning.type === 'missing_dep' && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid var(--amber)', padding: '12px', borderRadius: '6px', marginTop: '4px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--amber)', fontSize: '13px' }}>
-                            <AlertTriangle size={14} />
-                            <span>⚠️ '{feature.label}' requires '{warning.missing.map(id => ALL_FEATURES.find(f => f.id === id)?.label).join(', ')}' to be enabled. Enable it too?</span>
-                          </div>
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <button className="btn btn-secondary" style={{ fontSize: '12px', padding: '4px 8px' }} onClick={() => resolveWarning(feature.id, 'proceed')}>Auto-enable</button>
-                            <button className="btn btn-ghost" style={{ fontSize: '12px', padding: '4px 8px' }} onClick={() => cancelWarning(feature.id)}>Cancel</button>
-                          </div>
-                        </div>
-                      )}
-
-                      {warning && warning.type === 'has_dependents' && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid var(--amber)', padding: '12px', borderRadius: '6px', marginTop: '4px' }}>
-                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', color: 'var(--amber)', fontSize: '13px' }}>
-                            <AlertTriangle size={14} style={{ marginTop: '2px', flexShrink: 0 }} />
-                            <span>⚠️ Disabling '{feature.label}' will also disable: {warning.dependents.map(id => ALL_FEATURES.find(f => f.id === id)?.label).join(', ')}. Proceed?</span>
-                          </div>
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <button className="btn btn-secondary" style={{ fontSize: '12px', padding: '4px 8px' }} onClick={() => resolveWarning(feature.id, 'proceed')}>Confirm</button>
-                            <button className="btn btn-ghost" style={{ fontSize: '12px', padding: '4px 8px' }} onClick={() => cancelWarning(feature.id)}>Cancel</button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+          {formData.role === 'admin' ? (
+            <div style={{ gridColumn: '1 / -1', padding: '24px', background: 'rgba(245, 158, 11, 0.05)', border: '1px solid var(--amber)', borderRadius: '8px', color: 'var(--amber)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <Shield size={24} />
+              <div>
+                <h3 style={{ margin: 0, fontSize: '15px' }}>Full System Access</h3>
+                <p style={{ margin: '4px 0 0 0', fontSize: '13px', opacity: 0.9 }}>Administrators automatically have unrestricted access to all features, settings, and projects.</p>
               </div>
             </div>
-
-            {/* Project Assignment */}
-            <div>
-              <h3 className="font-display" style={{ fontSize: '15px', marginBottom: '16px', color: 'var(--text)' }}>Project Assignment</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '500px', overflowY: 'auto', paddingRight: '8px' }}>
-                {projects.length === 0 ? (
-                  <div style={{ color: 'var(--text-3)', fontSize: '14px', fontStyle: 'italic' }}>No projects available.</div>
-                ) : (
-                  projects.map(project => {
-                    const isAssigned = formData.assignedProjectIds.includes(project.id);
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+              {/* Feature Access */}
+              <div>
+                <h3 className="font-display" style={{ fontSize: '15px', marginBottom: '16px', color: 'var(--text)' }}>Feature Access</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {ALL_FEATURES.map(feature => {
+                    const isChecked = formData.featureAccess.includes(feature.id);
+                    const warning = featureWarnings[feature.id];
+                    
                     return (
-                      <label key={project.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '12px', background: 'var(--bg)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                        <div style={{
-                          width: '18px', height: '18px', borderRadius: '4px', border: '1px solid',
-                          borderColor: isAssigned ? 'var(--blue)' : 'var(--border)',
-                          background: isAssigned ? 'var(--blue)' : 'transparent',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
-                        }}>
-                          {isAssigned && <Check size={12} color="#fff" />}
-                        </div>
-                        <input
-                          type="checkbox"
-                          style={{ display: 'none' }}
-                          checked={isAssigned}
-                          onChange={() => toggleProject(project.id)}
-                        />
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontSize: '14px', fontWeight: '500' }}>{project.name}</span>
-                          {project.client && <span style={{ fontSize: '12px', color: 'var(--text-2)' }}>{project.client}</span>}
-                        </div>
-                      </label>
+                      <div key={feature.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'var(--bg)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', margin: 0 }}>
+                          <div style={{
+                            width: '18px', height: '18px', borderRadius: '4px', border: '1px solid',
+                            borderColor: isChecked ? 'var(--blue)' : 'var(--border)',
+                            background: isChecked ? 'var(--blue)' : 'transparent',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                          }}>
+                            {isChecked && <Check size={12} color="#fff" />}
+                          </div>
+                          <input
+                            type="checkbox"
+                            style={{ display: 'none' }}
+                            checked={isChecked}
+                            onChange={() => handleToggleFeature(feature.id)}
+                          />
+                          <span style={{ fontSize: '14px' }}>{feature.label}</span>
+                        </label>
+                        
+                        {warning && warning.type === 'missing_dep' && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid var(--amber)', padding: '12px', borderRadius: '6px', marginTop: '4px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--amber)', fontSize: '13px' }}>
+                              <AlertTriangle size={14} />
+                              <span>⚠️ '{feature.label}' requires '{warning.missing.map(id => ALL_FEATURES.find(f => f.id === id)?.label).join(', ')}' to be enabled. Enable it too?</span>
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button className="btn btn-secondary" style={{ fontSize: '12px', padding: '4px 8px' }} onClick={() => resolveWarning(feature.id, 'proceed')}>Auto-enable</button>
+                              <button className="btn btn-ghost" style={{ fontSize: '12px', padding: '4px 8px' }} onClick={() => cancelWarning(feature.id)}>Cancel</button>
+                            </div>
+                          </div>
+                        )}
+
+                        {warning && warning.type === 'has_dependents' && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid var(--amber)', padding: '12px', borderRadius: '6px', marginTop: '4px' }}>
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', color: 'var(--amber)', fontSize: '13px' }}>
+                              <AlertTriangle size={14} style={{ marginTop: '2px', flexShrink: 0 }} />
+                              <span>⚠️ Disabling '{feature.label}' will also disable: {warning.dependents.map(id => ALL_FEATURES.find(f => f.id === id)?.label).join(', ')}. Proceed?</span>
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button className="btn btn-secondary" style={{ fontSize: '12px', padding: '4px 8px' }} onClick={() => resolveWarning(feature.id, 'proceed')}>Confirm</button>
+                              <button className="btn btn-ghost" style={{ fontSize: '12px', padding: '4px 8px' }} onClick={() => cancelWarning(feature.id)}>Cancel</button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     );
-                  })
-                )}
+                  })}
+                </div>
+              </div>
+
+              {/* Project Assignment */}
+              <div>
+                <h3 className="font-display" style={{ fontSize: '15px', marginBottom: '16px', color: 'var(--text)' }}>Project Assignment</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '500px', overflowY: 'auto', paddingRight: '8px' }}>
+                  {projects.length === 0 ? (
+                    <div style={{ color: 'var(--text-3)', fontSize: '14px', fontStyle: 'italic' }}>No projects available.</div>
+                  ) : (
+                    projects.map(project => {
+                      const isAssigned = formData.assignedProjectIds.includes(project.id);
+                      return (
+                        <label key={project.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '12px', background: 'var(--bg)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                          <div style={{
+                            width: '18px', height: '18px', borderRadius: '4px', border: '1px solid',
+                            borderColor: isAssigned ? 'var(--blue)' : 'var(--border)',
+                            background: isAssigned ? 'var(--blue)' : 'transparent',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                          }}>
+                            {isAssigned && <Check size={12} color="#fff" />}
+                          </div>
+                          <input
+                            type="checkbox"
+                            style={{ display: 'none' }}
+                            checked={isAssigned}
+                            onChange={() => toggleProject(project.id)}
+                          />
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontSize: '14px', fontWeight: '500' }}>{project.name}</span>
+                            {project.client && <span style={{ fontSize: '12px', color: 'var(--text-2)' }}>{project.client}</span>}
+                          </div>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {error && <div style={{ background: 'rgba(248,113,113,0.1)', color: 'var(--red)', padding: '12px', borderRadius: '6px', fontSize: '13px', marginTop: '24px' }}>{error}</div>}
 
