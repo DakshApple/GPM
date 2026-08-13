@@ -210,14 +210,24 @@ export function GoogleChatView({ account }) {
   };
 
   const getSenderName = (sender) => {
-    return sender?.displayName || sender?.name || 'Unknown User';
+    if (sender?.displayName) return sender.displayName;
+    if (sender?.name) {
+      // Look up in the space members list
+      const memberMatch = members.find(m => m.member?.name === sender.name);
+      if (memberMatch?.member?.displayName) return memberMatch.member.displayName;
+    }
+    return sender?.name || 'Unknown User';
   };
 
   const isCurrentUser = (sender) => {
     if (!sender) return false;
     if (sender.type === 'BOT') return false;
+    
+    // Resolve the name (either from sender object or members list)
+    const resolvedName = getSenderName(sender);
+    
     // Match against the connected Google user's name
-    if (googleUser?.name && sender.displayName === googleUser.name) return true;
+    if (googleUser?.name && resolvedName === googleUser.name) return true;
     return false;
   };
 
@@ -297,7 +307,7 @@ export function GoogleChatView({ account }) {
                     {getSpaceIcon(space.spaceType)}
                   </div>
                   <div style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: selectedSpace?.name === space.name ? 500 : 400 }}>
-                    {space.displayName || 'Unnamed Space'}
+                    {space.displayName || (space.spaceType === 'DIRECT_MESSAGE' ? 'Direct Message' : 'Group Chat')}
                   </div>
                 </div>
               ))
@@ -316,7 +326,9 @@ export function GoogleChatView({ account }) {
                      {getSpaceIcon(selectedSpace.spaceType)}
                   </div>
                   <div>
-                    <h3 className="font-display" style={{ margin: 0, fontSize: 16 }}>{selectedSpace.displayName || 'Unnamed Space'}</h3>
+                    <h3 className="font-display" style={{ margin: 0, fontSize: 16 }}>
+                      {selectedSpace.displayName || (selectedSpace.spaceType === 'DIRECT_MESSAGE' ? 'Direct Message' : 'Group Chat')}
+                    </h3>
                     <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
                       {members.length} member{members.length !== 1 ? 's' : ''}
                     </div>
