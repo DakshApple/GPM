@@ -7,29 +7,23 @@ import { mail } from '../services/mail';
 
 export function ClientLogin({ onLogin }) {
   const [email, setEmail] = useState("");
-  const [projectId, setProjectId] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
   const submit = async (e) => {
-    e.preventDefault(); setError(""); setBusy(true);
+    e.preventDefault(); setError(""); setMessage(""); setBusy(true);
     try {
-      const projects = await api.getTable('gpm_projects');
-      const p = projects.find(x => x.id === projectId.trim() || x.name.toLowerCase() === projectId.trim().toLowerCase());
-      if (!p) { setError("project not found."); setBusy(false); return; }
-      if (p.portalPassword && p.portalPassword !== password) { setError("incorrect password."); setBusy(false); return; }
-      
-      // Save client email if provided and different
-      if (email && email !== p.clientEmail) {
-        await api.upsertRow('gpm_projects', { ...p, clientEmail: email });
-        p.clientEmail = email; // Update local state copy
-      }
-      
-      localStorage.setItem("gpm:client_session", JSON.stringify({ projectId: p.id, expiresAt: Date.now() + 86400000 }));
-      onLogin(p);
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: {
+          emailRedirectTo: window.location.origin + '#client'
+        }
+      });
+      if (error) throw error;
+      setMessage("Magic link sent! Please check your email to log in.");
     } catch(err) {
-      setError("connection error.");
+      setError(err.message || "Connection error.");
     }
     setBusy(false);
   };
@@ -43,11 +37,10 @@ export function ClientLogin({ onLogin }) {
         <form onSubmit={submit} style={{ display:"flex", flexDirection:"column", gap:12, background:"#141415", padding:24, borderRadius:12, border:"1px solid #2A2A2E" }}>
           <h2 className="font-display" style={{ fontSize:18, fontWeight:500, color:"#fff", margin:0, marginBottom:8 }}>Welcome Back</h2>
           <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email Address" style={{ width:"100%", boxSizing:"border-box", background:"#1E1E22", border:"1px solid #333", color:"#fff" }} required />
-          <input value={projectId} onChange={e => setProjectId(e.target.value)} placeholder="Project ID or Name" style={{ width:"100%", boxSizing:"border-box", background:"#1E1E22", border:"1px solid #333", color:"#fff" }} required />
-          <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password (if set)" style={{ width:"100%", boxSizing:"border-box", background:"#1E1E22", border:"1px solid #333", color:"#fff" }} />
           {error && <div style={{ fontSize:12, color:"#F87171", padding:"8px 12px", background:"rgba(248,113,113,.1)", borderRadius:6 }}>{error}</div>}
+          {message && <div style={{ fontSize:12, color:"#A3E635", padding:"8px 12px", background:"rgba(163,230,53,.1)", borderRadius:6 }}>{message}</div>}
           <button type="submit" disabled={busy} className="btn" style={{ width:"100%", justifyContent:"center", background:"#fff", color:"#000", fontWeight:500, marginTop:8 }}>
-            {busy ? "Authenticating..." : "View Project"}
+            {busy ? "Sending..." : "Send Magic Link"}
           </button>
         </form>
         <div style={{ marginTop:16, textAlign:"center" }}>
@@ -77,20 +70,34 @@ export function ClientPortal({ project, onLogout }) {
   const fileInputRef = useRef(null);
 
   const fetchData = async () => {
-    const t = await api.getTable('gpm_tasks');
-    setTasks(t.filter(x => x.projectId === project.id && x.isClientVisible));
-    const m = await api.getTable('gpm_modules');
-    setModules(m.filter(x => x.projectId === project.id).sort((a,b) => a.order - b.order));
-    const tk = await api.getTable('gpm_tickets');
-    setTickets(tk.filter(x => x.projectId === project.id));
-    const deliv = await api.getTable('gpm_deliverables');
-    setDeliverables(deliv.filter(x => x.projectId === project.id).reverse());
+    // Relying on RLS: we only fetch tasks for the current project
+    const { data: t } = await supabase.from('gpm_tasks').select('*').eq('project_id', project.id).eq('is_client_visible', true);
+    if (t) setTasks(t.map(x => ({ ...x, projectId: x.project_id, isClientVisible: x.is_client_visible, clientTitle: x.client_title, clientDescription: x.client_description, moduleId: x.module_id, completedAt: x.completed_at })));
+    
+    const { data: m } = await supabase.from('gpm_modules').select('*').eq('project_id', project.id);
+    if (m) setModules(m.map(x => ({ ...x, projectId: x.project_id, startDate: x.start_date })).sort((a,b) => a.order - b.order));
+    
+    const { data: tk } = await supabase.from('gpm_tickets').select('*').eq('project_id', project.id);
+    if (tk) setTickets(tk.map(x => ({ ...x, projectId: x.project_id, isEdited: x.is_edited, createdAt: x.created_at })));
+    
+    const { data: deliv } = await supabase.from('gpm_deliverables').select('*').eq('project_id', project.id);
+    if (deliv) setDeliverables(deliv.map(x => ({ ...x, projectId: x.project_id, createdAt: x.created_at })).reverse());
   };
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 15 * 1000); // 15 seconds
-    return () => clearInterval(interval);
+
+    // Supabase Realtime Subscriptions
+    const channel = supabase.channel(`client_project_${project.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gpm_tasks', filter: `project_id=eq.${project.id}` }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gpm_modules', filter: `project_id=eq.${project.id}` }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gpm_tickets', filter: `project_id=eq.${project.id}` }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gpm_deliverables', filter: `project_id=eq.${project.id}` }, fetchData)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [project.id]);
 
   const openTicketModal = (tk = null) => {

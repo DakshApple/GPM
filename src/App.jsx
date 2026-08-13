@@ -86,74 +86,78 @@ export default function App() {
     return allTickets.filter(t => projectIds.has(t.projectId));
   }, [allTickets, projects, isAdmin]);
 
-  // load
   const fetchData = async () => {
     try {
-      // Try to restore session
-      const savedAccount = localStorage.getItem("gpm:account");
-      if (savedAccount) {
-        const parsed = JSON.parse(savedAccount);
-        if (parsed.expiresAt && Date.now() > parsed.expiresAt) {
-          localStorage.removeItem("gpm:account");
-          setAccount(null);
+      // Fetch data based on RLS (only authorized data will be returned)
+      const [u, e, p, t, tc, v, va, m, up, s, tk, d, accs] = await Promise.all([
+        api.getTable('gpm_users'),
+        api.getTable('gpm_employees'),
+        api.getTable('gpm_projects'),
+        api.getTable('gpm_tasks'),
+        api.getTable('gpm_task_comments'),
+        api.getTable('gpm_api_vault'),
+        api.getTable('gpm_api_vault_access'),
+        api.getTable('gpm_modules'),
+        api.getTable('gpm_updates'),
+        api.getTable('gpm_suggestions'),
+        api.getTable('gpm_tickets'),
+        api.getTable('gpm_deliverables'),
+        api.getTable('gpm_accounts')
+      ]);
+      setUsers(u); setEmployees(e); setAllProjects(p); setAllTasks(t); setTaskComments(tc); setApiVault(v); setApiVaultAccess(va);
+      setModules(m); setUpdates(up); setSuggestions(s); setAllTickets(tk);
+      setDeliverables(d); setAccounts(accs);
+      
+      // Handle session detection
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        setAccount(null);
+        if (window.location.hash === "#client") {
+          setClientProject("login");
         } else {
-          // Validate account still exists
-          const accs = await api.getTable('gpm_accounts');
-          setAccounts(accs);
-          const found = accs.find(a => a.id === parsed.id && a.password === parsed.password);
-          if (found) setAccount(found);
-          else { localStorage.removeItem("gpm:account"); setAccount(null); }
+          setClientProject(null);
         }
       } else {
-        const accs = await api.getTable('gpm_accounts');
-        setAccounts(accs);
+        // Is it an internal team member?
+        const found = accs.find(a => a.supabaseUid === session.user.id || a.email === session.user.email);
+        if (found) {
+          setAccount(found);
+          setClientProject(null);
+        } else {
+          // It's a client via Magic Link!
+          setAccount(null);
+          if (p.length > 0) {
+            setClientProject(p[0]); // Auto-select first project they have access to
+          } else {
+            setClientProject("login");
+          }
+        }
       }
     } catch (err) {
-      console.error("Auth error:", err);
-    }
-    const [u, e, p, t, tc, v, va, m, up, s, tk, d] = await Promise.all([
-      api.getTable('gpm_users'),
-      api.getTable('gpm_employees'),
-      api.getTable('gpm_projects'),
-      api.getTable('gpm_tasks'),
-      api.getTable('gpm_task_comments'),
-      api.getTable('gpm_api_vault'),
-      api.getTable('gpm_api_vault_access'),
-      api.getTable('gpm_modules'),
-      api.getTable('gpm_updates'),
-      api.getTable('gpm_suggestions'),
-      api.getTable('gpm_tickets'),
-      api.getTable('gpm_deliverables')
-    ]);
-    setUsers(u); setEmployees(e); setAllProjects(p); setAllTasks(t); setTaskComments(tc); setApiVault(v); setApiVaultAccess(va);
-    setModules(m); setUpdates(up); setSuggestions(s); setAllTickets(tk);
-    setDeliverables(d);
-    
-    // Check client session
-    const cs = localStorage.getItem("gpm:client_session");
-    if (cs) {
-      const parsed = JSON.parse(cs);
-      if (parsed.expiresAt && Date.now() > parsed.expiresAt) {
-        localStorage.removeItem("gpm:client_session");
-        setClientProject(prev => (prev && prev !== "login" ? "login" : prev));
-      } else {
-        const found = p.find(proj => proj.id === parsed.projectId);
-        if (found) {
-          setClientProject(prev => (prev === "login" || !prev ? found : prev));
-        } else {
-          localStorage.removeItem("gpm:client_session");
-        }
-      }
+      console.error("Fetch error:", err);
     }
   };
 
   useEffect(() => {
-    (async () => {
-      await fetchData();
-      setInit(true);
-    })();
-    const interval = setInterval(fetchData, 15 * 1000); // Poll every 15 seconds for near real-time sync
-    return () => clearInterval(interval);
+    fetchData().then(() => setInit(true));
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      fetchData(); // Refetch data when auth state changes
+    });
+
+    // Replace 15s polling with real-time push subscriptions
+    const channel = supabase.channel('schema-db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+        // Debounce or directly fetch
+        fetchData();
+      })
+      .subscribe();
+
+    return () => {
+      subscription?.unsubscribe();
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const runScheduler = useCallback((d) => {
@@ -246,7 +250,11 @@ export default function App() {
     document.addEventListener("keydown", down); return () => document.removeEventListener("keydown", down);
   }, []);
 
-  const logout = () => { localStorage.removeItem("gpm:account"); setAccount(null); };
+  const logout = async () => {
+    await supabase.auth.signOut();
+    setAccount(null);
+    setClientProject(null);
+  };
 
   useEffect(() => {
     const handleHash = () => {
@@ -314,10 +322,10 @@ export default function App() {
   
   if (clientProject) {
     if (clientProject === "login") return <ClientLogin onLogin={p => setClientProject(p)} />;
-    return <ClientPortal project={clientProject} onLogout={() => { localStorage.removeItem("gpm:client_session"); setClientProject(null); window.location.hash=""; }} />;
+    return <ClientPortal project={clientProject} onLogout={logout} />;
   }
 
-  if (!account) return <AuthScreen onAuth={(acc) => { setAccount(acc); setAccounts(prev => { const existing = prev.find(a=>a.id===acc.id); return existing ? prev : [...prev, acc]; }); }} />;
+  if (!account) return <AuthScreen onAuth={() => { /* Handled by onAuthStateChange */ }} />;
 
   return (
     <div style={{ display:"flex", height:"100vh", overflow:"hidden" }}>
