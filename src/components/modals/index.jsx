@@ -238,7 +238,7 @@ export function NewEmployeeModal({ open, onClose, onCreate }) {
   useEffect(() => { if (open) { setName(""); setRole("Developer"); setSkills(""); } }, [open]);
   
   if (!open) return null;
-  const create = () => { if (!name) return; onCreate({ id:uid(), name:name.trim(), role, capacity:8, skills:skills.split(",").map(s=>s.trim()).filter(Boolean) }); onClose(); };
+  const create = () => { if (!name) return; onCreate({ id:uid(), name:name.trim(), role, skills:skills.split(",").map(s=>s.trim()).filter(Boolean) }); onClose(); };
   
   return (
     <div style={{ position:"fixed", inset:0, zIndex:50, display:"flex", alignItems:"center", justifyContent:"center", padding:24, background:"rgba(0,0,0,.6)" }} onClick={onClose}>
