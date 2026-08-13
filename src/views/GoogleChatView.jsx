@@ -406,16 +406,15 @@ export function GoogleChatView({ account }) {
                     <h3 className="font-display" style={{ margin: 0, fontSize: 16 }}>
                       {selectedSpace.displayName || (selectedSpace.spaceType === 'DIRECT_MESSAGE' ? 'Direct Message' : 'Group Chat')}
                     </h3>
-                    <div style={{ fontSize: 12, color: 'var(--text-3)', display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
                       <span>{members.length} member{members.length !== 1 ? 's' : ''}</span>
-                      {debugLog && <span style={{ color: 'var(--red)', fontSize: 10, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={debugLog}>(Hover for debug logs)</span>}
                     </div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <button 
                     className="btn btn-ghost" 
-                    onClick={() => loadMessages(selectedSpace.name)}
+                    onClick={() => { loadMessages(selectedSpace.name); loadMembers(selectedSpace.name); }}
                     style={{ padding: 8 }}
                     title="Refresh messages"
                   >
@@ -431,6 +430,12 @@ export function GoogleChatView({ account }) {
                   </button>
                 </div>
               </div>
+
+              {debugLog && (
+                <div style={{ backgroundColor: 'var(--red)', color: 'white', padding: '4px 12px', fontSize: 11, whiteSpace: 'pre-wrap', maxHeight: 100, overflowY: 'auto' }}>
+                  DEBUG: {debugLog}
+                </div>
+              )}
 
               {/* Messages Area */}
               <div style={{ flex: 1, overflowY: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
