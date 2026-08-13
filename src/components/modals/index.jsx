@@ -71,7 +71,7 @@ export function NewProjectModal({ open, onClose, employees, users, onCreate }) {
       estimatedDays:10, priority:"medium", status:"planning", color:"amber",
       isOngoing: false
     });
-  }, [open, users]);
+  }, [open]);
   
   if (!open || !draft) return null;
   const create = () => { if (!draft.name || !draft.client) return; onCreate(draft); onClose(); };
@@ -114,7 +114,7 @@ export function TaskModal({ open, initial, projects, modules, employees, users, 
         deadline: toISO(addDays(new Date(), 7)), estimatedHours: 4,
       });
     }
-  }, [open, initial?.id, projects, employees]);
+  }, [open, initial?.id]);
 
   if (!open || !draft) return null;
   const set = (k,v) => setDraft({...draft,[k]:v});
