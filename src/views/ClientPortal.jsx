@@ -198,7 +198,7 @@ export function ClientPortal({ project, onLogout }) {
         if (targetEmails.length > 0) {
           mail.sendTicketAcknowledgement(targetEmails, tkId, tk.message, project.name);
         }
-        mail.sendTeamNotification(tkId, tk.message, project.name, tk.priority, tk.deadline);
+        mail.sendTeamNotification(tkId, tk.message, project.name, tk.priority, tk.deadline, project.id);
       }
       
       setTicketDraft({ id: null, message:"", priority:"medium", deadline:"", attachments: [] });

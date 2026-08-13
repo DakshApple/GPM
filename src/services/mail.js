@@ -92,8 +92,8 @@ export const mail = {
     await sendEmail(subject, html, clientEmails);
   },
 
-  // 3. Client Ticket Created -> Notify All Admins
-  async sendTeamNotification(ticketId, ticketMessage, projectName, priority, deadline) {
+  // 3. Client Ticket Created -> Notify All Admins & Team Members
+  async sendTeamNotification(ticketId, ticketMessage, projectName, priority, deadline, projectId) {
     const subject = `🚨 New Client Request: ${projectName} (${priority.toUpperCase()})`;
     const html = emailContainer(`
       <h2 style="color: #f59e0b; margin-top: 0; font-size: 20px;">New Client Request</h2>
@@ -109,15 +109,19 @@ export const mail = {
 
     try {
       const accounts = await api.getTable('gpm_accounts');
-      const adminEmails = accounts
-        .filter(a => a.role === 'admin')
-        .map(a => a.notificationEmail || a.email)
+      const targetEmails = accounts
+        .filter(a => {
+          const assignedIds = a.assignedProjectIds || a.assigned_project_ids || [];
+          return a.role === 'admin' || (Array.isArray(assignedIds) && assignedIds.includes(projectId));
+        })
+        .map(a => a.notificationEmail || a.notification_email || a.email)
         .filter(Boolean);
       
-      if (adminEmails.length > 0) {
-        await sendEmail(subject, html, adminEmails);
+      const uniqueEmails = [...new Set(targetEmails)];
+      if (uniqueEmails.length > 0) {
+        await sendEmail(subject, html, uniqueEmails);
       } else {
-        console.warn("[MAIL] No admin notification emails configured in gpm_accounts.");
+        console.warn("[MAIL] No team or admin notification emails configured in gpm_accounts.");
       }
     } catch(e) {
       console.error("Failed to notify admins", e);

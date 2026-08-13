@@ -191,7 +191,7 @@ export default function App() {
 
     const proj = allProjects.find(p => p.id === t.projectId);
     const assigneeAcc = accounts.find(a => a.id === t.assigneeId || a.username === t.assigneeId) || employees.find(e => e.id === t.assigneeId);
-    const assigneeEmail = assigneeAcc?.email || assigneeAcc?.notificationEmail;
+    const assigneeEmail = assigneeAcc?.notificationEmail || assigneeAcc?.notification_email || assigneeAcc?.email;
     if (assigneeEmail) {
       mail.sendTaskAssignedNotification(assigneeEmail, t.title, proj?.name || "Project", t.deadline);
     }
@@ -244,8 +244,40 @@ export default function App() {
   const deleteDeliverable = async (id) => { await api.deleteRow('gpm_deliverables', id); setDeliverables(deliverables.filter(x => x.id !== id)); };
 
   // Account management
-  const createAccount = async (acc) => { await api.upsertRow('gpm_accounts', acc); setAccounts([...accounts, acc]); showToast(`account "${acc.username}" created`); };
-  const updateAccount = async (acc) => { await api.upsertRow('gpm_accounts', acc); setAccounts(accounts.map(a => a.id === acc.id ? acc : a)); showToast("account updated"); };
+  const createAccount = async (acc) => { 
+    await api.upsertRow('gpm_accounts', acc); 
+    setAccounts([...accounts, acc]); 
+    showToast(`account "${acc.username}" created`);
+    
+    if (acc.assignedProjectIds && acc.assignedProjectIds.length > 0) {
+      const targetEmail = acc.notificationEmail || acc.notification_email || acc.email;
+      if (targetEmail) {
+        acc.assignedProjectIds.forEach(pid => {
+          const proj = allProjects.find(p => p.id === pid);
+          if (proj) mail.sendProjectAssignedNotification(targetEmail, proj.name);
+        });
+      }
+    }
+  };
+  const updateAccount = async (acc) => {
+    const oldAcc = accounts.find(a => a.id === acc.id);
+    await api.upsertRow('gpm_accounts', acc); 
+    setAccounts(accounts.map(a => a.id === acc.id ? acc : a)); 
+    showToast("account updated"); 
+    
+    // Check for new project assignments
+    if (oldAcc && acc.assignedProjectIds) {
+      const oldIds = oldAcc.assignedProjectIds || [];
+      const newIds = acc.assignedProjectIds.filter(id => !oldIds.includes(id));
+      const targetEmail = acc.notificationEmail || acc.notification_email || acc.email;
+      if (targetEmail && newIds.length > 0) {
+        newIds.forEach(pid => {
+          const proj = allProjects.find(p => p.id === pid);
+          if (proj) mail.sendProjectAssignedNotification(targetEmail, proj.name);
+        });
+      }
+    }
+  };
   const deleteAccount = async (id) => { await api.deleteRow('gpm_accounts', id); setAccounts(accounts.filter(a => a.id !== id)); showToast("account deleted"); };
 
   const applySuggestion = async (id) => {
