@@ -164,6 +164,8 @@ export function GoogleChatView({ account }) {
                    const data = await fetchRes.json();
                    if (data.names && data.names.length > 0) {
                      resolvedName = data.names[0].displayName;
+                   } else {
+                     setDebugLog(prev => prev + `\nPeople API returned 200 but no 'names' for ${accountId}`);
                    }
                  } else {
                    const errData = await fetchRes.json().catch(() => ({}));
