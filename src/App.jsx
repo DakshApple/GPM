@@ -11,7 +11,7 @@ import { TimelineView } from './views/TimelineView';
 import { ProjectsView } from './views/ProjectsView';
 import { ProjectDetail } from './views/ProjectDetail';
 import { TasksView } from './views/TasksView';
-import { TeamView, SuggestionsView } from './views/index';
+import { TeamView, SuggestionsView, APIVaultView } from './views/index';
 import { TicketsView } from './views/TicketsView';
 import { UserManagement } from './views/UserManagement';
 import { IntegrationsView } from './views/IntegrationsView';
@@ -40,6 +40,9 @@ export default function App() {
   const [employees, setEmployees] = useState([]);
   const [allProjects, setAllProjects] = useState([]);
   const [allTasks, setAllTasks] = useState([]);
+  const [taskComments, setTaskComments] = useState([]);
+  const [apiVault, setApiVault] = useState([]);
+  const [apiVaultAccess, setApiVaultAccess] = useState([]);
   const [modules, setModules] = useState([]);
   const [updates, setUpdates] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
@@ -108,18 +111,21 @@ export default function App() {
     } catch (err) {
       console.error("Auth error:", err);
     }
-    const [u, e, p, t, m, up, s, tk, d] = await Promise.all([
+    const [u, e, p, t, tc, v, va, m, up, s, tk, d] = await Promise.all([
       api.getTable('gpm_users'),
       api.getTable('gpm_employees'),
       api.getTable('gpm_projects'),
       api.getTable('gpm_tasks'),
+      api.getTable('gpm_task_comments'),
+      api.getTable('gpm_api_vault'),
+      api.getTable('gpm_api_vault_access'),
       api.getTable('gpm_modules'),
       api.getTable('gpm_updates'),
       api.getTable('gpm_suggestions'),
       api.getTable('gpm_tickets'),
       api.getTable('gpm_deliverables')
     ]);
-    setUsers(u); setEmployees(e); setAllProjects(p); setAllTasks(t);
+    setUsers(u); setEmployees(e); setAllProjects(p); setAllTasks(t); setTaskComments(tc); setApiVault(v); setApiVaultAccess(va);
     setModules(m); setUpdates(up); setSuggestions(s); setAllTickets(tk);
     setDeliverables(d);
     
@@ -163,6 +169,9 @@ export default function App() {
   // Actions
   const createProject = async (p) => { await api.upsertRow('gpm_projects', p); const n = [...allProjects, p]; setAllProjects(n); runScheduler({ projects:n, employees, tasks:allTasks, modules, users }); showToast(`project "${p.name}" created`); };
   const updateProject = async (p) => { await api.upsertRow('gpm_projects', p); const n = allProjects.map(x => x.id===p.id?p:x); setAllProjects(n); runScheduler({ projects:n, employees, tasks:allTasks, modules, users }); showToast("project saved"); };
+  const createTaskComment = async (comment) => { await api.upsertRow('gpm_task_comments', comment); setTaskComments([...taskComments, comment]); };
+  const updateTaskComment = async (comment) => { await api.upsertRow('gpm_task_comments', comment); setTaskComments(taskComments.map(c => c.id === comment.id ? comment : c)); };
+
   const deleteProject = async (id) => { await api.deleteRow('gpm_projects', id); const n = allProjects.filter(x => x.id!==id); setAllProjects(n); if(openProjectId===id)setOpenProjectId(null); runScheduler({ projects:n, employees, tasks:allTasks, modules, users }); showToast("project deleted"); };
   const markProjectDelivered = async (id) => { const p = allProjects.find(x=>x.id===id); if(!p)return; const updated = {...p, status:"delivered", deadline:today()}; await api.upsertRow('gpm_projects', updated); const n = allProjects.map(x => x.id===id?updated:x); setAllProjects(n); runScheduler({ projects:n, employees, tasks:allTasks, modules, users }); showToast("project delivered 🎉"); };
   
@@ -312,7 +321,7 @@ export default function App() {
       <Sidebar view={view} setView={setView} account={account} counts={counts} onLogout={logout} onOpenPalette={() => setShowPalette(true)} onChangePassword={() => setShowChangePassword(true)} />
       
       {view === "dashboard" && hasFeature("dashboard") && <Dashboard projects={projects} employees={employees} users={users} updates={updates} suggestions={suggestions} tasks={tasks} modules={modules} user={user} setView={setView} setOpenProjectId={setOpenProjectId} openTaskById={(id) => setTaskModalInitial(tasks.find(x=>x.id===id))} />}
-      {view === "calendar" && hasFeature("calendar") && <CalendarView projects={projects} tasks={tasks} onOpenProject={setOpenProjectId} openTaskById={(id) => setTaskModalInitial(tasks.find(x=>x.id===id))} />}
+      {view === "calendar" && hasFeature("calendar") && <CalendarView projects={projects} tasks={tasks} employees={employees} users={users} onOpenProject={setOpenProjectId} openTaskById={(id) => setTaskModalInitial(tasks.find(x=>x.id===id))} />}
       {view === "timeline" && hasFeature("timeline") && <TimelineView projects={projects} tasks={tasks} onOpenProject={setOpenProjectId} />}
       {view === "projects" && hasFeature("projects") && <ProjectsView projects={projects} employees={employees} users={users} tasks={tasks} onOpenProject={setOpenProjectId} onNewProject={isAdmin ? () => setShowNP(true) : undefined} />}
       {view === "tasks" && hasFeature("tasks") && <TasksView tasks={tasks} projects={projects} employees={employees} users={users} currentUser={user} openTaskById={(id) => setTaskModalInitial(tasks.find(x=>x.id===id))} onNewTask={setTaskModalInitial} onAdvanceTask={advanceTask} onUpdateTaskStatus={updateTaskStatus} />}
@@ -324,11 +333,12 @@ export default function App() {
       {view === "drive" && <GoogleDriveView account={account} />}
       {view === "gmail" && <GmailView account={account} />}
       {view === "gchat" && <GoogleChatView account={account} />}
+      {view === "vault" && hasFeature("vault") && <APIVaultView account={account} projects={projects} apiVault={apiVault} apiVaultAccess={apiVaultAccess} />}
 
       {openProjectId && <ProjectDetail project={projects.find(p=>p.id===openProjectId)} projects={projects} employees={employees} users={users} updates={updates} tasks={tasks} modules={modules} deliverables={deliverables} onClose={()=>setOpenProjectId(null)} onSave={updateProject} onDelete={deleteProject} onAddUpdate={addUpdate} onAddDeliverable={addDeliverable} onDeleteDeliverable={deleteDeliverable} onMarkDelivered={markProjectDelivered} onCreateTask={createTask} onEditTask={updateTask} onAdvanceTask={advanceTask} onDeleteTask={deleteTask} onCreateModule={createModule} onUpdateModule={updateModuleObj} onDeleteModule={deleteModule} />}
 
       {isAdmin && <NewProjectModal open={showNP} onClose={()=>setShowNP(false)} employees={employees} users={users} onCreate={createProject} />}
-      <TaskModal open={!!taskModalInitial} initial={taskModalInitial} projects={projects.filter(p=>p.status!=="delivered")} modules={modules} employees={employees} users={users} onClose={()=>setTaskModalInitial(null)} onCreate={createTask} onUpdate={updateTask} />
+      <TaskModal open={!!taskModalInitial} initial={taskModalInitial} projects={projects.filter(p=>p.status!=="delivered")} modules={modules} employees={employees} users={users} allTasks={allTasks} taskComments={taskComments} account={account} onClose={()=>setTaskModalInitial(null)} onCreate={createTask} onUpdate={updateTask} onCreateComment={createTaskComment} onUpdateComment={updateTaskComment} />
       {isAdmin && <NewEmployeeModal open={showNE} onClose={()=>setShowNE(false)} onCreate={addEmployee} />}
       <ChangePasswordModal open={showChangePassword} account={account} onClose={() => setShowChangePassword(false)} onChangePassword={handleChangePassword} />
 

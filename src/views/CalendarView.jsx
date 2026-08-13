@@ -4,7 +4,7 @@ import { Topbar } from '../components/layout';
 import { toISO, fromISO, today } from '../utils/date';
 import { colorFor, PALETTE } from '../utils/constants';
 
-export function CalendarView({ projects, tasks, onOpenProject, openTaskById }) {
+export function CalendarView({ projects, tasks, employees, users, onOpenProject, openTaskById }) {
   const [cursor, setCursor] = useState(() => { const d = new Date(); d.setDate(1); return d; });
   const monthLabel = cursor.toLocaleDateString("en-US", { month:"long", year:"numeric" });
   const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
@@ -18,6 +18,9 @@ export function CalendarView({ projects, tasks, onOpenProject, openTaskById }) {
   }
   const projectsForDay = useCallback((iso) => iso ? projects.filter(p => iso >= p.startDate && iso <= p.deadline && p.status !== "delivered") : [], [projects]);
   const tasksDueOnDay = useCallback((iso) => iso ? tasks.filter(t => t.deadline === iso && t.status !== "done") : [], [tasks]);
+
+  const allPeople = [...users, ...employees];
+  const getAssigneeName = (id) => { const p = allPeople.find(x => x.id === id); return p ? p.name.split(' ')[0] : 'Unassigned'; };
 
   return (
     <div style={{ flex:1, overflowY:"auto", display:"flex", flexDirection:"column" }}>
@@ -73,13 +76,21 @@ export function CalendarView({ projects, tasks, onOpenProject, openTaskById }) {
                   })}
                 </div>
                 {td.length > 0 && (
-                  <div style={{ display:"flex", gap:3, marginTop:4, flexWrap:"wrap" }}>
-                    {td.slice(0,6).map(t => {
+                  <div style={{ display:"flex", flexDirection:"column", gap:2, marginTop:4, overflow:"hidden" }}>
+                    {td.slice(0,4).map(t => {
                       const p = projects.find(x => x.id === t.projectId);
                       const c = p ? colorFor(p.color) : PALETTE[0];
-                      return <button key={t.id} onClick={() => openTaskById(t.id)} title={t.title} style={{ width:6, height:6, borderRadius:3, background:c.ring, border:"none", cursor:"pointer", padding:0 }} />;
+                      const assigneeName = getAssigneeName(t.assigneeId);
+                      return (
+                        <button key={t.id} onClick={() => openTaskById(t.id)} title={`${t.title} - ${assigneeName}`}
+                          style={{ width:"100%", display:"flex", alignItems:"center", gap:4, textAlign:"left", fontSize:10, padding:"2px 4px", borderRadius:3, background:"var(--surface-2)", color:"var(--text-2)", border:"1px solid var(--border)", cursor:"pointer", overflow:"hidden" }}>
+                          <div style={{ width:6, height:6, borderRadius:3, background:c.ring, flexShrink:0 }} />
+                          <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1 }}>{t.title}</span>
+                          <span style={{ fontSize:9, color:"var(--text-3)", flexShrink:0 }}>{assigneeName}</span>
+                        </button>
+                      );
                     })}
-                    {td.length > 6 && <span className="font-mono" style={{ fontSize:9, color:"var(--text-3)" }}>+{td.length-6}</span>}
+                    {td.length > 4 && <span className="font-mono" style={{ fontSize:9, color:"var(--text-3)", textAlign:"center", marginTop:2 }}>+{td.length-4} more</span>}
                   </div>
                 )}
               </div>

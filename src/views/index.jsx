@@ -3,6 +3,8 @@ import { Plus, User } from 'lucide-react';
 import { Topbar } from '../components/layout';
 import { daysBetween, today, isPast } from '../utils/date';
 
+export { APIVaultView } from './APIVaultView';
+
 export function TeamView({ users, employees, projects, tasks, onNewEmployee }) {
   const active = projects.filter(p => p.status !== "delivered");
   return (

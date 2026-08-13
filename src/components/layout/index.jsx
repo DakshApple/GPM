@@ -14,6 +14,7 @@ export function Sidebar({ view, setView, account, counts, onLogout, onOpenPalett
     { id:"tickets",   label:"client tickets", icon: MessageSquare,count: counts.tickets, accent: true, feature:"tickets" },
     { id:"team",      label:"team",           icon: Users, feature:"team_view" },
     { id:"ai",        label:"ai suggestions", icon: Sparkles,     count: counts.suggestions, accent: true, feature:"ai" },
+    { id:"vault",     label:"api vault",      icon: Key, feature:"vault" },
   ];
 
   const isAdmin = account.role === "admin";

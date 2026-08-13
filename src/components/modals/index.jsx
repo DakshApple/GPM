@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Check, Wand2 } from 'lucide-react';
+import { X, Plus, Check, Wand2, MessageSquareWarning, CheckCircle2, AlertTriangle, Bug, Code, ArrowRight, CornerDownRight } from 'lucide-react';
 import { PALETTE } from '../../utils/constants';
 import { uid, toISO, addDays, fromISO, today } from '../../utils/date';
 import { suggestTaskBreakdown } from '../../services/heuristics';
@@ -94,7 +94,7 @@ export function NewProjectModal({ open, onClose, employees, users, onCreate }) {
   );
 }
 
-export function TaskModal({ open, initial, projects, modules, employees, users, onClose, onCreate, onUpdate }) {
+export function TaskModal({ open, initial, projects, modules, employees, users, allTasks = [], taskComments = [], account, onClose, onCreate, onUpdate, onCreateComment, onUpdateComment }) {
   const isEdit = !!(initial && initial.id && initial.title);
   const [draft, setDraft] = useState(null);
   const [tab, setTab] = useState("technical");
@@ -154,6 +154,9 @@ export function TaskModal({ open, initial, projects, modules, employees, users, 
           <div style={{ display:"flex", gap:16, borderBottom:"1px solid var(--border)", marginBottom:12 }}>
             <button type="button" onClick={() => setTab("technical")} style={{ paddingBottom:8, background:"none", border:"none", borderBottom:`2px solid ${tab==="technical"?"var(--amber)":"transparent"}`, color:tab==="technical"?"var(--amber)":"var(--text-2)", fontWeight:tab==="technical"?500:400, cursor:"pointer" }}>technical</button>
             <button type="button" onClick={() => setTab("client")} style={{ paddingBottom:8, background:"none", border:"none", borderBottom:`2px solid ${tab==="client"?"var(--blue)":"transparent"}`, color:tab==="client"?"var(--blue)":"var(--text-2)", fontWeight:tab==="client"?500:400, cursor:"pointer" }}>client portal</button>
+            {isEdit && (
+              <button type="button" onClick={() => setTab("issues")} style={{ paddingBottom:8, background:"none", border:"none", borderBottom:`2px solid ${tab==="issues"?"var(--red)":"transparent"}`, color:tab==="issues"?"var(--red)":"var(--text-2)", fontWeight:tab==="issues"?500:400, cursor:"pointer" }}>issues & subtasks</button>
+            )}
           </div>
 
           {tab === "technical" ? (
@@ -161,7 +164,7 @@ export function TaskModal({ open, initial, projects, modules, employees, users, 
               <div><label className="fl">title</label><input value={draft.title} onChange={e => set("title",e.target.value)} placeholder="what needs to happen?" style={{ width:"100%", marginTop:4, boxSizing:"border-box" }} autoFocus /></div>
               <div><label className="fl">description</label><textarea value={draft.description||""} onChange={e => set("description",e.target.value)} rows={2} style={{ width:"100%", marginTop:4, boxSizing:"border-box", resize:"none" }} /></div>
             </>
-          ) : (
+          ) : tab === "client" ? (
             <>
               <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
                 <input type="checkbox" checked={draft.isClientVisible||false} onChange={e => set("isClientVisible",e.target.checked)} id="cb_visible" />
@@ -178,7 +181,13 @@ export function TaskModal({ open, initial, projects, modules, employees, users, 
                 <textarea value={draft.clientDescription||""} onChange={e => set("clientDescription",e.target.value)} rows={2} style={{ width:"100%", marginTop:4, boxSizing:"border-box", resize:"none" }} />
               </div>
             </>
-          )}          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+          ) : (
+            <TaskIssuesTab draft={draft} allTasks={allTasks} taskComments={taskComments} account={account} onCreate={onCreate} onCreateComment={onCreateComment} onUpdateComment={onUpdateComment} />
+          )}          
+          
+          {tab !== "issues" && (
+            <>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
             <div><label className="fl">project</label><select value={draft.projectId} onChange={e => set("projectId",e.target.value)} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }}>{projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
             <div><label className="fl">module</label><select value={draft.moduleId||""} onChange={e => set("moduleId",e.target.value||null)} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }}><option value="">— none —</option>{projectModules.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div>
           </div>
@@ -218,6 +227,8 @@ export function TaskModal({ open, initial, projects, modules, employees, users, 
               )}
             </div>
           )}
+            </>
+          )}
         </div>
         <div style={{ padding:"16px 24px", borderTop:"1px solid var(--border)", display:"flex", justifyContent:"flex-end", gap:8 }}>
           <button className="btn btn-secondary" onClick={onClose}>cancel</button>
@@ -255,6 +266,155 @@ export function NewEmployeeModal({ open, onClose, onCreate }) {
         <div style={{ padding:"16px 24px", borderTop:"1px solid var(--border)", display:"flex", justifyContent:"flex-end", gap:8 }}>
           <button className="btn btn-secondary" onClick={onClose}>cancel</button>
           <button className="btn btn-primary" onClick={create} disabled={!name.trim()}><Plus style={{ width:14, height:14 }} /> add</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function TaskIssuesTab({ draft, allTasks, taskComments, account, onCreate, onCreateComment, onUpdateComment }) {
+  const [commentText, setCommentText] = useState("");
+  const [isIssue, setIsIssue] = useState(false);
+  const [subTaskTitle, setSubTaskTitle] = useState("");
+  const [subTaskType, setSubTaskType] = useState("task");
+
+  const myComments = taskComments.filter(c => c.taskId === draft.id).sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt));
+  const subTasks = allTasks.filter(t => t.parentId === draft.id);
+
+  const handlePostComment = () => {
+    if (!commentText.trim()) return;
+    onCreateComment({
+      id: uid(),
+      taskId: draft.id,
+      authorId: account.id,
+      text: commentText.trim(),
+      isIssue,
+      status: isIssue ? 'open' : 'closed',
+      createdAt: new Date().toISOString()
+    });
+    setCommentText("");
+    setIsIssue(false);
+  };
+
+  const handleResolveIssue = (c) => {
+    onUpdateComment({ ...c, status: 'resolved' });
+  };
+
+  const handleCreateSubTask = () => {
+    if (!subTaskTitle.trim()) return;
+    onCreate({
+      id: uid(),
+      parentId: draft.id,
+      projectId: draft.projectId,
+      title: subTaskTitle.trim(),
+      taskType: subTaskType,
+      status: 'todo',
+      priority: draft.priority,
+      assigneeId: account.id,
+      deadline: draft.deadline,
+      estimatedHours: 1
+    });
+    setSubTaskTitle("");
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* Sub-tasks Section */}
+      <div>
+        <h4 style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <CornerDownRight size={14} /> Sub-tasks & Dependencies
+        </h4>
+        
+        {subTasks.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+            {subTasks.map(st => (
+              <div key={st.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6 }}>
+                {st.taskType === 'bug' ? <Bug size={14} color="var(--red)" /> : <Code size={14} color="var(--blue)" />}
+                <span style={{ fontSize: 13, flex: 1, textDecoration: st.status === 'done' ? 'line-through' : 'none', color: st.status === 'done' ? 'var(--text-3)' : 'var(--text)' }}>
+                  {st.title}
+                </span>
+                <span className="font-mono" style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'var(--surface-3)', color: 'var(--text-2)' }}>
+                  {st.status.replace('_', ' ')}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          <select value={subTaskType} onChange={e => setSubTaskType(e.target.value)} style={{ padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)' }}>
+            <option value="task">Sub-task</option>
+            <option value="bug">Bug Fix</option>
+            <option value="improvement">Improvement</option>
+          </select>
+          <input 
+            value={subTaskTitle} onChange={e => setSubTaskTitle(e.target.value)} 
+            placeholder="Add a new sub-task..." 
+            style={{ flex: 1, padding: '6px 12px', borderRadius: 6, border: '1px solid var(--border)' }}
+            onKeyDown={e => e.key === 'Enter' && handleCreateSubTask()}
+          />
+          <button type="button" className="btn btn-secondary" onClick={handleCreateSubTask} disabled={!subTaskTitle.trim()} style={{ padding: '6px 12px' }}>
+            <Plus size={14} />
+          </button>
+        </div>
+      </div>
+
+      <div style={{ height: 1, background: 'var(--border)' }} />
+
+      {/* Issues & Discussion Section */}
+      <div>
+        <h4 style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <MessageSquareWarning size={14} /> Internal Discussion & Issues
+        </h4>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 200, overflowY: 'auto', marginBottom: 12 }}>
+          {myComments.length === 0 ? (
+            <div style={{ fontSize: 12, color: 'var(--text-3)', textAlign: 'center', padding: 24, background: 'var(--surface)', borderRadius: 8 }}>
+              No comments or issues reported for this task yet.
+            </div>
+          ) : (
+            myComments.map(c => (
+              <div key={c.id} style={{ display: 'flex', gap: 12, padding: 12, background: c.isIssue ? (c.status === 'resolved' ? 'rgba(16, 185, 129, 0.05)' : 'rgba(239, 68, 68, 0.05)') : 'var(--surface)', border: `1px solid ${c.isIssue ? (c.status === 'resolved' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.3)') : 'var(--border)'}`, borderRadius: 8 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{c.authorId}</span>
+                    <span style={{ fontSize: 10, color: 'var(--text-3)' }}>{new Date(c.createdAt).toLocaleDateString()}</span>
+                    {c.isIssue && (
+                      <span className="font-mono" style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: c.status === 'resolved' ? 'var(--green)' : 'var(--red)', color: 'white' }}>
+                        {c.status === 'resolved' ? 'RESOLVED' : 'ISSUE'}
+                      </span>
+                    )}
+                  </div>
+                  <p style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--text-2)', whiteSpace: 'pre-wrap' }}>
+                    {c.text}
+                  </p>
+                </div>
+                {c.isIssue && c.status === 'open' && (
+                  <button type="button" onClick={() => handleResolveIssue(c)} className="btn btn-ghost" style={{ alignSelf: 'flex-start', color: 'var(--green)', fontSize: 11, padding: '4px 8px' }}>
+                    <CheckCircle2 size={12} style={{ marginRight: 4 }} /> Resolve
+                  </button>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <textarea 
+            value={commentText} onChange={e => setCommentText(e.target.value)} 
+            placeholder="Add a comment or report a technical problem..." 
+            rows={2} 
+            style={{ width: '100%', resize: 'none', padding: 12, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', boxSizing: 'border-box' }} 
+          />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--amber)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={isIssue} onChange={e => setIsIssue(e.target.checked)} />
+              <AlertTriangle size={12} /> Flag as blocking issue
+            </label>
+            <button type="button" className="btn btn-primary" onClick={handlePostComment} disabled={!commentText.trim()}>
+              Post
+            </button>
+          </div>
         </div>
       </div>
     </div>
