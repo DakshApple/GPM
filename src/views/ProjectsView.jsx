@@ -46,8 +46,8 @@ export function ProjectsView({ projects, employees, users, tasks, onOpenProject,
                     <div className="font-display" style={{ fontWeight:600, fontSize:14, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name}</div>
                   </div>
                   <span className="font-mono" style={{ fontSize:10, padding:"3px 8px", borderRadius:4, flexShrink:0, marginLeft:8,
-                    background: p.status==="delivered"?"rgba(74,222,128,.15)":p.status==="in_progress"?"rgba(245,166,35,.15)":"var(--surface-3)",
-                    color: p.status==="delivered"?"var(--green)":p.status==="in_progress"?"var(--amber)":"var(--text-2)" }}>{p.status.replace("_"," ")}</span>
+                    background: p.status==="delivered"?"rgba(74,222,128,.15)":p.status==="in_progress"?"rgba(245,166,35,.15)":p.status==="on_hold"?"rgba(239,68,68,.15)":"var(--surface-3)",
+                    color: p.status==="delivered"?"var(--green)":p.status==="in_progress"?"var(--amber)":p.status==="on_hold"?"var(--red)":"var(--text-2)" }}>{p.status.replace("_"," ")}</span>
                 </div>
                 <div style={{ fontSize:12, color:"var(--text-2)", marginBottom:8 }}>{p.client}</div>
                 <div className="line-clamp-2" style={{ fontSize:11, color:"var(--text-3)", marginBottom:12, lineHeight:1.5 }}>{p.description}</div>
