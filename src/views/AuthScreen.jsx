@@ -3,6 +3,7 @@ import { Shield, ArrowRight, LogIn } from 'lucide-react';
 import { api, supabase } from '../services/db';
 
 export function AuthScreen({ onAuth }) {
+  const [loginType, setLoginType] = useState('member'); // 'member' or 'admin'
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");

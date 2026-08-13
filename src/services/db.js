@@ -11,6 +11,7 @@ export const secondarySupabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
     persistSession: false,
     autoRefreshToken: false,
     detectSessionInUrl: false,
+    storageKey: 'secondary_auth'
   }
 });
 
