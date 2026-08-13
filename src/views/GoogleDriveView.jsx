@@ -238,24 +238,41 @@ export function GoogleDriveView({ account }) {
         )}
         
         {/* Breadcrumbs */}
-        <div style={{ display: 'flex', alignItems: 'center', flex: 1, overflow: 'hidden', whiteSpace: 'nowrap' }}>
-          {path.map((segment, index) => (
-            <React.Fragment key={segment.id}>
-              {index > 0 && <ChevronRight size={16} style={{ color: 'var(--text-3)', margin: '0 4px' }} />}
-              <span 
-                onClick={() => handleBreadcrumbClick(index)}
-                style={{ 
-                  cursor: 'pointer', 
-                  color: index === path.length - 1 ? 'var(--text)' : 'var(--text-2)',
-                  fontWeight: index === path.length - 1 ? 600 : 400,
-                  fontSize: '0.9rem',
-                }}
-              >
-                {segment.name}
-              </span>
-            </React.Fragment>
-          ))}
-        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflowX: 'auto', paddingBottom: 4, flex: 1 }}>
+              {path.map((segment, idx) => (
+                <React.Fragment key={segment.id}>
+                  <div 
+                    onClick={() => handleBreadcrumbClick(idx)}
+                    style={{ 
+                      cursor: idx === path.length - 1 ? 'default' : 'pointer',
+                      color: idx === path.length - 1 ? 'var(--text)' : 'var(--text-3)',
+                      fontWeight: idx === path.length - 1 ? 500 : 400,
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '4px 8px',
+                      borderRadius: 6,
+                      transition: 'all 0.2s',
+                      backgroundColor: idx === path.length - 1 ? 'var(--surface)' : 'transparent'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (idx !== path.length - 1) {
+                        e.currentTarget.style.color = 'var(--text)';
+                        e.currentTarget.style.backgroundColor = 'var(--surface-2)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (idx !== path.length - 1) {
+                        e.currentTarget.style.color = 'var(--text-3)';
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }
+                    }}
+                  >
+                    {segment.name}
+                  </div>
+                  {idx < path.length - 1 && <ChevronRight size={16} color="var(--text-3)" />}
+                </React.Fragment>
+              ))}
+            </div>
 
         {/* Search */}
         <div style={{ position: 'relative', width: 240 }}>
@@ -319,19 +336,21 @@ export function GoogleDriveView({ account }) {
         onDrop={handleDrop}
       >
         {dragActive && (
-          <div style={{
-            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(var(--blue-rgb), 0.1)',
+          <div style={{ 
+            position: 'absolute', top: 24, left: 24, right: 24, bottom: 24, 
+            backgroundColor: 'rgba(var(--bg-rgb, 10, 10, 10), 0.8)', 
+            backdropFilter: 'blur(8px)',
+            borderRadius: 16,
             border: '2px dashed var(--blue)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 10,
-            borderRadius: 8,
-            margin: 24
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            color: 'var(--blue)', zIndex: 100,
+            animation: 'scaleIn 0.2s ease'
           }}>
-            <div style={{ textAlign: 'center', color: 'var(--blue)' }}>
-              <Upload size={48} style={{ margin: '0 auto 16px' }} />
-              <h3 className="font-display">Drop files here to upload</h3>
+            <div style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <Upload size={32} />
             </div>
+            <h2 className="font-display" style={{ fontSize: 24, margin: '0 0 8px 0' }}>Drop files to upload</h2>
+            <p style={{ color: 'var(--text-2)' }}>to {path[path.length - 1].name}</p>
           </div>
         )}
 
@@ -347,8 +366,13 @@ export function GoogleDriveView({ account }) {
           </div>
         ) : files.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-3)' }}>
-            <FolderPlus size={48} style={{ marginBottom: 16, opacity: 0.5 }} />
-            <p>This folder is empty</p>
+            <div style={{ textAlign: 'center' }}>
+                  <div style={{ width: 80, height: 80, borderRadius: 40, background: 'var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', boxShadow: '0 8px 32px rgba(0,0,0,0.05)' }}>
+                    <HardDrive size={32} opacity={0.5} />
+                  </div>
+                  <div className="font-display" style={{ fontSize: 18, color: 'var(--text)', marginBottom: 8 }}>This folder is empty</div>
+                  <div style={{ fontSize: 14 }}>Upload files or create a new folder to get started.</div>
+            </div>
           </div>
         ) : viewMode === 'grid' ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
@@ -358,14 +382,31 @@ export function GoogleDriveView({ account }) {
               return (
                 <div 
                   key={file.id} 
-                  className="fade-in"
-                  style={{ 
-                    border: '1px solid var(--border)', borderRadius: 8, padding: 16,
-                    backgroundColor: 'var(--surface)', cursor: 'pointer',
-                    display: 'flex', flexDirection: 'column', gap: 12,
-                    position: 'relative'
-                  }}
+                  className="drive-grid-item"
                   onClick={() => folder ? handleNavigate(file) : window.open(file.webViewLink, '_blank')}
+                  style={{ 
+                    backgroundColor: 'var(--surface-2)', 
+                    border: '1px solid var(--border)',
+                    borderRadius: 12, 
+                    padding: 16,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 12,
+                    position: 'relative',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.08)';
+                    e.currentTarget.style.borderColor = 'var(--text-3)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'none';
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.02)';
+                    e.currentTarget.style.borderColor = 'var(--border)';
+                  }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{ padding: 12, backgroundColor: 'var(--surface-2)', borderRadius: 8 }}>

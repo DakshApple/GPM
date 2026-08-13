@@ -343,41 +343,39 @@ export function GoogleChatView({ account }) {
                 <div>No spaces found</div>
               </div>
             ) : (
-              filteredSpaces.map(space => (
-                <div
-                  key={space.name}
-                  onClick={() => setSelectedSpace(space)}
-                  style={{
-                    padding: '10px 12px',
-                    borderRadius: 8,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    marginBottom: 4,
-                    backgroundColor: selectedSpace?.name === space.name ? 'var(--surface-3)' : 'transparent',
-                    color: selectedSpace?.name === space.name ? 'var(--text)' : 'var(--text-2)',
-                    transition: 'background-color 0.15s ease'
-                  }}
-                  onMouseOver={(e) => {
-                    if (selectedSpace?.name !== space.name) {
-                      e.currentTarget.style.backgroundColor = 'var(--surface-2)';
-                    }
-                  }}
-                  onMouseOut={(e) => {
-                    if (selectedSpace?.name !== space.name) {
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                    }
-                  }}
-                >
-                  <div style={{ color: 'var(--text-3)' }}>
-                    {getSpaceIcon(space.spaceType)}
+              filteredSpaces.map(space => {
+                const isSelected = selectedSpace?.name === space.name;
+                return (
+                  <div 
+                    key={space.name} 
+                    onClick={() => { setSelectedSpace(space); setShowMembers(false); }}
+                    style={{ 
+                      padding: '10px 16px', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 12, 
+                      cursor: 'pointer',
+                      backgroundColor: isSelected ? 'var(--surface-2)' : 'transparent',
+                      color: isSelected ? 'var(--text)' : 'var(--text-2)',
+                      transition: 'all 0.2s',
+                      fontWeight: isSelected ? 500 : 400
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected) e.currentTarget.style.backgroundColor = 'var(--surface)';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    <div style={{ color: 'var(--text-3)' }}>
+                      {getSpaceIcon(space.spaceType)}
+                    </div>
+                    <div style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {space.displayName || (space.spaceType === 'DIRECT_MESSAGE' ? 'Direct Message' : 'Group Chat')}
+                    </div>
                   </div>
-                  <div style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: selectedSpace?.name === space.name ? 500 : 400 }}>
-                    {space.displayName || (space.spaceType === 'DIRECT_MESSAGE' ? 'Direct Message' : 'Group Chat')}
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
@@ -453,20 +451,19 @@ export function GoogleChatView({ account }) {
                               <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{formatTime(msg.createTime)}</span>
                            </div>
                         )}
-                        <div style={{ 
-                          padding: '10px 14px', 
-                          borderRadius: 12, 
-                          backgroundColor: isSelf ? 'rgba(59, 130, 246, 0.1)' : 'var(--surface-2)',
-                          color: isSelf ? 'var(--blue)' : 'var(--text)',
+                        <div style={{
+                          backgroundColor: isSelf ? 'transparent' : 'var(--surface-2)',
+                          color: isSelf ? 'var(--text)' : 'var(--text)',
+                          padding: '12px 16px',
+                          borderRadius: isSelf ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
                           maxWidth: '75%',
-                          borderTopLeftRadius: !isSelf && !isSameSenderAsPrev ? 4 : 12,
-                          borderTopRightRadius: isSelf && !isSameSenderAsPrev ? 4 : 12,
-                          marginLeft: !isSelf ? 32 : 0,
-                          marginRight: isSelf ? 0 : 0,
+                          border: isSelf ? '1px solid var(--border)' : 'none',
                           lineHeight: 1.5,
-                          wordBreak: 'break-word'
+                          boxShadow: isSelf ? 'none' : '0 2px 8px rgba(0,0,0,0.04)',
+                          wordBreak: 'break-word',
+                          position: 'relative'
                         }}>
-                          {msg.text}
+                          {msg.text || (msg.cards ? '[Card Message]' : '')}
                         </div>
                       </div>
                     );
@@ -478,13 +475,18 @@ export function GoogleChatView({ account }) {
               {/* Input Area */}
               <div style={{ padding: 24, borderTop: '1px solid var(--border)', backgroundColor: 'var(--surface)' }}>
                 <div style={{ 
-                  display: 'flex', alignItems: 'flex-end', 
-                  backgroundColor: 'var(--surface-2)', 
-                  borderRadius: 24, padding: '8px 16px', gap: 12,
-                  border: '1px solid var(--border)'
+                  display: 'flex', 
+                  alignItems: 'flex-end', 
+                  backgroundColor: 'var(--surface)', 
+                  border: '1px solid var(--border)',
+                  borderRadius: 24, 
+                  padding: '8px 16px',
+                  gap: 12,
+                  boxShadow: '0 2px 12px rgba(0,0,0,0.03)',
+                  transition: 'border-color 0.2s, box-shadow 0.2s'
                 }}>
-                  <button className="btn btn-ghost" style={{ padding: 4, color: 'var(--text-3)' }}><Plus size={20} /></button>
-                  <textarea
+                  <button className="btn btn-ghost" style={{ padding: 4, color: 'var(--text-3)', marginBottom: 2 }}><Plus size={20} /></button>
+                  <textarea 
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     onKeyDown={handleKeyDown}
@@ -498,16 +500,25 @@ export function GoogleChatView({ account }) {
                       resize: 'none',
                       maxHeight: 150,
                       minHeight: 24,
-                      padding: '8px 0',
-                      lineHeight: 1.5
+                      padding: '10px 0',
+                      lineHeight: 1.5,
+                      fontFamily: 'inherit'
                     }}
                     rows={1}
                     onInput={(e) => {
                       e.target.style.height = 'auto';
                       e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px';
                     }}
+                    onFocus={(e) => {
+                      e.target.parentElement.style.borderColor = 'var(--text-3)';
+                      e.target.parentElement.style.boxShadow = '0 4px 16px rgba(0,0,0,0.06)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.parentElement.style.borderColor = 'var(--border)';
+                      e.target.parentElement.style.boxShadow = '0 2px 12px rgba(0,0,0,0.03)';
+                    }}
                   />
-                  <button className="btn btn-ghost" style={{ padding: 4, color: 'var(--text-3)' }}><Smile size={20} /></button>
+                  <button className="btn btn-ghost" style={{ padding: 4, color: 'var(--text-3)', marginBottom: 2 }}><Smile size={20} /></button>
                   <button 
                     className="btn btn-primary" 
                     onClick={handleSendMessage}
@@ -515,7 +526,8 @@ export function GoogleChatView({ account }) {
                     style={{ 
                       padding: 8, 
                       borderRadius: '50%', 
-                      opacity: !newMessage.trim() ? 0.5 : 1 
+                      opacity: !newMessage.trim() ? 0.5 : 1,
+                      marginBottom: 2
                     }}
                   >
                     <Send size={16} />
@@ -524,9 +536,14 @@ export function GoogleChatView({ account }) {
               </div>
             </>
           ) : (
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16, color: 'var(--text-3)' }}>
-              <MessageSquare size={64} opacity={0.2} />
-              <div className="font-display" style={{ fontSize: 18 }}>Select a space to start chatting</div>
+            <div className="fade-in" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 24, color: 'var(--text-3)' }}>
+              <div style={{ width: 96, height: 96, borderRadius: 48, background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 32px rgba(0,0,0,0.05)' }}>
+                <MessageSquare size={40} opacity={0.5} />
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div className="font-display" style={{ fontSize: 20, color: 'var(--text)', marginBottom: 8 }}>Google Chat</div>
+                <div style={{ fontSize: 14 }}>Select a space or direct message from the sidebar to start chatting.</div>
+              </div>
             </div>
           )}
         </div>

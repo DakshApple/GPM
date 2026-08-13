@@ -63,16 +63,22 @@ export function IntegrationsView({ account }) {
         
         {/* Header / Hero Area */}
         <div style={{ 
-          background: 'linear-gradient(135deg, var(--surface-2) 0%, var(--surface) 100%)',
-          borderRadius: 16,
-          padding: 40,
+          background: 'linear-gradient(135deg, rgba(66, 133, 244, 0.1) 0%, rgba(52, 168, 83, 0.05) 50%, rgba(234, 67, 53, 0.1) 100%)',
+          borderRadius: 24,
+          padding: '48px 40px',
           marginBottom: 32,
           border: '1px solid var(--border)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          textAlign: 'center'
+          textAlign: 'center',
+          position: 'relative',
+          overflow: 'hidden'
         }}>
+          {/* Decorative background blur */}
+          <div style={{ position: 'absolute', top: -100, left: -100, width: 300, height: 300, background: 'rgba(66, 133, 244, 0.1)', filter: 'blur(100px)', borderRadius: '50%' }} />
+          <div style={{ position: 'absolute', bottom: -100, right: -100, width: 300, height: 300, background: 'rgba(234, 67, 53, 0.1)', filter: 'blur(100px)', borderRadius: '50%' }} />
+          
           <div style={{
             width: 80,
             height: 80,
@@ -95,12 +101,14 @@ export function IntegrationsView({ account }) {
           </h1>
           
           {connected && tokenInfo ? (
-            <div className="scale-in" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div className="scale-in" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1 }}>
               {tokenInfo.picture ? (
-                <img src={tokenInfo.picture} alt="Profile" style={{ width: 64, height: 64, borderRadius: 32, marginBottom: 16 }} />
+                <div style={{ padding: 4, background: 'linear-gradient(135deg, #4285F4, #EA4335)', borderRadius: '50%', marginBottom: 16 }}>
+                  <img src={tokenInfo.picture} alt="Profile" style={{ width: 72, height: 72, borderRadius: 36, border: '3px solid var(--surface)' }} />
+                </div>
               ) : null}
-              <h2 style={{ fontSize: 20, margin: '0 0 8px 0', color: 'var(--text)' }}>{tokenInfo.name || account.displayName}</h2>
-              <p className="font-mono" style={{ margin: '0 0 24px 0', color: 'var(--text-2)' }}>{tokenInfo.email}</p>
+              <h2 style={{ fontSize: 24, margin: '0 0 4px 0', color: 'var(--text)', fontWeight: 600 }}>{tokenInfo.name || account.displayName}</h2>
+              <p className="font-mono" style={{ margin: '0 0 24px 0', color: 'var(--text-2)', fontSize: 13 }}>{tokenInfo.email}</p>
               
               <div style={{ display: 'flex', gap: 12 }}>
                 <button 
@@ -146,14 +154,28 @@ export function IntegrationsView({ account }) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 24 }}>
           
           {/* Drive Card */}
-          <div style={{ 
-            background: 'var(--surface-2)', 
-            borderRadius: 12, 
-            padding: 24, 
-            border: '1px solid var(--border)',
-            display: 'flex',
-            flexDirection: 'column'
-          }}>
+          <div 
+            className="integration-card"
+            style={{ 
+              background: 'var(--surface-2)', 
+              borderRadius: 16, 
+              padding: 24, 
+              border: '1px solid var(--border)',
+              display: 'flex',
+              flexDirection: 'column',
+              transition: 'all 0.2s ease',
+              cursor: 'default',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'none';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
+            }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <div style={{ width: 48, height: 48, borderRadius: 12, background: 'var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <HardDrive size={24} color="var(--blue)" />
@@ -175,14 +197,28 @@ export function IntegrationsView({ account }) {
           </div>
 
           {/* Gmail Card */}
-          <div style={{ 
-            background: 'var(--surface-2)', 
-            borderRadius: 12, 
-            padding: 24, 
-            border: '1px solid var(--border)',
-            display: 'flex',
-            flexDirection: 'column'
-          }}>
+          <div 
+            className="integration-card"
+            style={{ 
+              background: 'var(--surface-2)', 
+              borderRadius: 16, 
+              padding: 24, 
+              border: '1px solid var(--border)',
+              display: 'flex',
+              flexDirection: 'column',
+              transition: 'all 0.2s ease',
+              cursor: 'default',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'none';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
+            }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <div style={{ width: 48, height: 48, borderRadius: 12, background: 'var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Mail size={24} color="var(--red)" />
@@ -204,14 +240,28 @@ export function IntegrationsView({ account }) {
           </div>
 
           {/* Chat Card */}
-          <div style={{ 
-            background: 'var(--surface-2)', 
-            borderRadius: 12, 
-            padding: 24, 
-            border: '1px solid var(--border)',
-            display: 'flex',
-            flexDirection: 'column'
-          }}>
+          <div 
+            className="integration-card"
+            style={{ 
+              background: 'var(--surface-2)', 
+              borderRadius: 16, 
+              padding: 24, 
+              border: '1px solid var(--border)',
+              display: 'flex',
+              flexDirection: 'column',
+              transition: 'all 0.2s ease',
+              cursor: 'default',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-4px)';
+              e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'none';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
+            }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <div style={{ width: 48, height: 48, borderRadius: 12, background: 'var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <MessageSquare size={24} color="var(--amber)" />

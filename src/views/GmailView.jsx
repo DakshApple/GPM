@@ -241,45 +241,57 @@ export function GmailView({ account }) {
               ) : messages.length === 0 ? (
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 48, color: 'var(--text-3)' }}>
                   <div style={{ textAlign: 'center' }}>
-                    <Inbox size={48} style={{ marginInline: 'auto', marginBottom: 16, opacity: 0.5 }} />
-                    <p>No emails in this label</p>
+                    <div style={{ width: 96, height: 96, borderRadius: 48, background: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', boxShadow: '0 8px 32px rgba(0,0,0,0.05)' }}>
+                      <Inbox size={40} opacity={0.5} />
+                    </div>
+                    <div className="font-display" style={{ fontSize: 20, color: 'var(--text)', marginBottom: 8 }}>All caught up!</div>
+                    <div style={{ fontSize: 14 }}>No emails in this label.</div>
                   </div>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  {messages.map((msg, i) => (
-                    <div
-                      key={msg.id || i}
-                      onClick={() => handleMessageClick(msg)}
-                      style={{
-                        display: 'flex', alignItems: 'center', padding: '12px 24px',
-                        borderBottom: '1px solid var(--border)', cursor: 'pointer',
-                        backgroundColor: msg.isUnread ? 'var(--surface)' : 'var(--bg)',
-                        gap: 16, transition: 'background-color 0.2s'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--surface-2)'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = msg.isUnread ? 'var(--surface)' : 'var(--bg)'}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 200, flexShrink: 0 }}>
-                        <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: msg.isUnread ? 'var(--blue)' : 'transparent', flexShrink: 0 }} />
-                        <Star size={18} style={{ color: msg.isStarred ? 'var(--amber)' : 'var(--border-strong)', fill: msg.isStarred ? 'var(--amber)' : 'none' }} />
-                        <span style={{ fontWeight: msg.isUnread ? 600 : 400, color: 'var(--text)', fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {messages.map((msg, i) => {
+                    const isUnread = msg.isUnread;
+                    return (
+                      <div 
+                        key={msg.id}
+                        onClick={() => handleMessageClick(msg)}
+                        style={{
+                          display: 'flex', alignItems: 'center', padding: '12px 24px',
+                          borderBottom: '1px solid var(--border)',
+                          cursor: 'pointer',
+                          backgroundColor: isUnread ? 'var(--surface-2)' : 'transparent',
+                          fontWeight: isUnread ? 600 : 400,
+                          color: isUnread ? 'var(--text)' : 'var(--text-2)',
+                          transition: 'background-color 0.2s',
+                          position: 'relative'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--surface)'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = isUnread ? 'var(--surface-2)' : 'transparent'}
+                      >
+                        <div style={{ width: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 16 }}>
+                          {isUnread && <div style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: 'var(--blue)', boxShadow: '0 0 8px rgba(59, 130, 246, 0.5)' }} />}
+                        </div>
+                        <div style={{ width: 24, marginRight: 16, color: msg.isStarred ? '#FBBC05' : 'var(--text-3)', display: 'flex', alignItems: 'center' }}>
+                          <Star size={18} fill={msg.isStarred ? '#FBBC05' : 'none'} />
+                        </div>
+                        <div style={{ width: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: 16, fontSize: 14 }}>
                           {parseFrom(msg.from)}
-                        </span>
-                      </div>
-                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', minWidth: 0, overflow: 'hidden' }}>
-                        <span style={{ fontWeight: msg.isUnread ? 600 : 400, color: 'var(--text)', fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {msg.subject || '(No Subject)'}
-                          <span style={{ fontWeight: 400, color: 'var(--text-3)', marginLeft: 8 }}>
-                            - {msg.snippet}
+                        </div>
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', minWidth: 0, overflow: 'hidden' }}>
+                          <span style={{ fontWeight: isUnread ? 600 : 400, color: 'var(--text)', fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {msg.subject || '(No Subject)'}
+                            <span style={{ fontWeight: 400, color: 'var(--text-3)', marginLeft: 8 }}>
+                              - {msg.snippet}
+                            </span>
                           </span>
-                        </span>
+                        </div>
+                        <div style={{ color: isUnread ? 'var(--text)' : 'var(--text-3)', fontSize: 12, fontWeight: isUnread ? 600 : 400, whiteSpace: 'nowrap', flexShrink: 0, width: 80, textAlign: 'right' }}>
+                          {formatDate(msg.date)}
+                        </div>
                       </div>
-                      <div style={{ color: msg.isUnread ? 'var(--text)' : 'var(--text-3)', fontSize: 12, fontWeight: msg.isUnread ? 600 : 400, whiteSpace: 'nowrap', flexShrink: 0, width: 80, textAlign: 'right' }}>
-                        {formatDate(msg.date)}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   
                   {nextPageToken && (
                     <div style={{ padding: 24, textAlign: 'center' }}>
