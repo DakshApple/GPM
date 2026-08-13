@@ -26,7 +26,7 @@ import { KEYS, NEXT_STATUS } from './utils/constants';
 import { uid, toISO, addDays, today } from './utils/date';
 
 import { ClientLogin, ClientPortal } from './views/ClientPortal';
-import { api } from './services/db';
+import { api, supabase } from './services/db';
 
 export default function App() {
   const [init, setInit] = useState(false);
