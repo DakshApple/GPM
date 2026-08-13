@@ -165,6 +165,10 @@ export function GoogleChatView({ account }) {
                    if (data.names && data.names.length > 0) {
                      resolvedName = data.names[0].displayName;
                    }
+                 } else {
+                   const errData = await fetchRes.json().catch(() => ({}));
+                   const errMsg = errData.error?.message || fetchRes.statusText;
+                   setDebugLog(prev => prev + `\nPeople API Error for ${accountId}: ${fetchRes.status} ${errMsg}`);
                  }
               } catch (err) {
                  console.warn('People API fallback failed for', id, err);
