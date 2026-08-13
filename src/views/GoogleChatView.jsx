@@ -17,6 +17,7 @@ export function GoogleChatView({ account }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showMembers, setShowMembers] = useState(false);
   const [error, setError] = useState(null);
+  const [userCache, setUserCache] = useState({});
 
   const messagesEndRef = useRef(null);
 
@@ -114,6 +115,76 @@ export function GoogleChatView({ account }) {
       setMembers([]);
     }
   }, [selectedSpace, loadMessages, loadMembers]);
+
+  // Fetch missing user display names in the background
+  useEffect(() => {
+    if (!token) return;
+    const fetchMissing = async () => {
+      const missingIds = new Set();
+      
+      // Check members
+      members.forEach(m => {
+        if (m.member?.name && !m.member?.displayName && !userCache[m.member.name]) {
+          missingIds.add(m.member.name);
+        }
+      });
+      
+      // Check messages
+      messages.forEach(msg => {
+        if (msg.sender?.name && !msg.sender?.displayName && !userCache[msg.sender.name]) {
+          const match = members.find(m => m.member?.name === msg.sender.name);
+          if (!match?.member?.displayName) {
+             missingIds.add(msg.sender.name);
+          }
+        }
+      });
+      
+      if (missingIds.size > 0) {
+        for (const id of missingIds) {
+          try {
+            // Optimistically set to prevent refetching
+            setUserCache(prev => ({ ...prev, [id]: { name: id } }));
+            
+            // Try fetching from Chat API
+            let resolvedName = null;
+            try {
+              const userResponse = await chatAPI.getUser(token, id);
+              if (userResponse?.displayName) resolvedName = userResponse.displayName;
+            } catch (err) {
+              console.warn('Chat API getUser failed for', id, err);
+            }
+            
+            // Fallback to People API
+            if (!resolvedName) {
+              try {
+                 const accountId = id.replace('users/', '');
+                 // Note: this requires userinfo.profile or contacts.readonly scope, which we may or may not have.
+                 // We wrap it in a try-catch so it fails gracefully.
+                 const url = `https://people.googleapis.com/v1/people/${accountId}?personFields=names`;
+                 const fetchRes = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+                 if (fetchRes.ok) {
+                   const data = await fetchRes.json();
+                   if (data.names && data.names.length > 0) {
+                     resolvedName = data.names[0].displayName;
+                   }
+                 }
+              } catch (err) {
+                 console.warn('People API fallback failed for', id, err);
+              }
+            }
+
+            if (resolvedName) {
+              setUserCache(prev => ({ ...prev, [id]: { name: id, displayName: resolvedName } }));
+            }
+          } catch (e) {
+            console.error('Failed to fetch user', id, e);
+          }
+        }
+      }
+    };
+    
+    fetchMissing();
+  }, [members, messages, token, userCache]);
 
   useEffect(() => {
     scrollToBottom();
@@ -214,7 +285,8 @@ export function GoogleChatView({ account }) {
   const getSenderName = (sender) => {
     if (sender?.displayName) return sender.displayName;
     if (sender?.name) {
-      // Look up in the space members list
+      if (userCache[sender.name]?.displayName) return userCache[sender.name].displayName;
+      
       const memberMatch = members.find(m => m.member?.name === sender.name);
       if (memberMatch?.member?.displayName) return memberMatch.member.displayName;
     }
@@ -480,7 +552,7 @@ export function GoogleChatView({ account }) {
                 <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: 13, marginTop: 16 }}>No members found</div>
               ) : (
                 members.map((member, idx) => {
-                  const memberName = member.member?.displayName || member.member?.name || 'Unknown User';
+                  const memberName = getSenderName(member.member);
                   return (
                     <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px', borderRadius: 8, marginBottom: 4 }}>
                       <div style={{ 

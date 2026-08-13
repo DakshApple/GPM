@@ -11,6 +11,7 @@ const SCOPES = [
   'https://www.googleapis.com/auth/chat.spaces.readonly',
   'https://www.googleapis.com/auth/chat.messages',
   'https://www.googleapis.com/auth/chat.memberships.readonly',
+  'https://www.googleapis.com/auth/userinfo.profile',
 ].join(' ');
 
 // ─── Token Management ────────────────────────────────────────────────
@@ -348,6 +349,10 @@ export const chatAPI = {
 
   async getSpace(token, spaceName) {
     return fetchAPI(token, `https://chat.googleapis.com/v1/${spaceName}`);
+  },
+
+  async getUser(token, userName) {
+    return fetchAPI(token, `https://chat.googleapis.com/v1/${userName}`);
   },
 };
 
