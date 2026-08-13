@@ -17,7 +17,6 @@ export function GoogleChatView({ account }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showMembers, setShowMembers] = useState(false);
   const [error, setError] = useState(null);
-  const [debugLog, setDebugLog] = useState('');
   const [userCache, setUserCache] = useState({});
 
   const messagesEndRef = useRef(null);
@@ -96,17 +95,13 @@ export function GoogleChatView({ account }) {
       const response = await chatAPI.getMembers(token, spaceName);
       if (response && Array.isArray(response)) {
         setMembers(response);
-        setDebugLog(prev => prev + `\nLoaded ${response.length} members for ${spaceName}`);
       } else if (response && response.memberships) {
         setMembers(response.memberships);
-        setDebugLog(prev => prev + `\nLoaded ${response.memberships.length} members for ${spaceName}`);
       } else {
         setMembers([]);
-        setDebugLog(prev => prev + `\nNo members array in response for ${spaceName}`);
       }
     } catch (err) {
       console.error("Failed to load members", err);
-      setDebugLog(prev => prev + `\nError loading members: ${err.message}`);
       setMembers([]);
     }
   }, [token]);
@@ -164,17 +159,10 @@ export function GoogleChatView({ account }) {
                    const data = await fetchRes.json();
                    if (data.names && data.names.length > 0) {
                      resolvedName = data.names[0].displayName;
-                   } else {
-                     setDebugLog(prev => prev + `\nPeople API returned 200 but no 'names' for ${accountId}`);
                    }
-                 } else {
-                   const errData = await fetchRes.json().catch(() => ({}));
-                   const errMsg = errData.error?.message || fetchRes.statusText;
-                   setDebugLog(prev => prev + `\nPeople API Error for ${accountId}: ${fetchRes.status} ${errMsg}`);
                  }
               } catch (err) {
                  console.warn('People API fallback failed for', id, err);
-                 setDebugLog(prev => prev + `\nPeople API failed: ${err.message}`);
               }
             }
 
@@ -305,8 +293,8 @@ export function GoogleChatView({ account }) {
     // Resolve the name (either from sender object or members list)
     const resolvedName = getSenderName(sender);
     
-    // Match against the connected Google user's name
-    if (googleUser?.name && resolvedName === googleUser.name) return true;
+    // Match against the connected Google user's name (case-insensitive)
+    if (googleUser?.name && resolvedName.toLowerCase() === googleUser.name.toLowerCase()) return true;
     return false;
   };
 
@@ -432,12 +420,6 @@ export function GoogleChatView({ account }) {
                   </button>
                 </div>
               </div>
-
-              {debugLog && (
-                <div style={{ backgroundColor: 'var(--red)', color: 'white', padding: '4px 12px', fontSize: 11, whiteSpace: 'pre-wrap', maxHeight: 100, overflowY: 'auto' }}>
-                  DEBUG: {debugLog}
-                </div>
-              )}
 
               {/* Messages Area */}
               <div style={{ flex: 1, overflowY: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
