@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, Command, LayoutDashboard, Calendar, Layers, FolderKanban, ListTodo, Users, Sparkles, LogOut, MessageSquare, UserCog, Key, HardDrive, Mail, MessagesSquare, Plug } from 'lucide-react';
+import { Search, Command, LayoutDashboard, Calendar, Layers, FolderKanban, ListTodo, Users, Sparkles, LogOut, MessageSquare, UserCog, Key, HardDrive, Mail, MessagesSquare, Plug, Activity } from 'lucide-react';
 import { isGoogleConnected } from '../../services/google';
 
 export function Sidebar({ view, setView, account, counts, onLogout, onOpenPalette, onChangePassword }) {
@@ -25,6 +25,7 @@ export function Sidebar({ view, setView, account, counts, onLogout, onOpenPalett
   // Admin-only items
   if (isAdmin) {
     items.push({ id:"manage_users", label:"manage users", icon: UserCog, feature:"manage_users" });
+    items.push({ id:"logs", label:"audit logs", icon: Activity, feature:"logs" });
   }
 
   // Google Workspace items

@@ -2,9 +2,10 @@ import React from 'react';
 import { MessageSquare, CheckCircle2, ArrowRight, Paperclip } from 'lucide-react';
 import { Topbar } from '../components/layout';
 
-export function TicketsView({ tickets, projects, onResolve, onConvertToTask }) {
+export function TicketsView({ tickets, projects, onResolve, onConvertToTask, deleteTicket, restoreTicket }) {
   const open = tickets.filter(t => t.status === "open").sort((a,b) => b.createdAt.localeCompare(a.createdAt));
   const resolved = tickets.filter(t => t.status === "resolved").sort((a,b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 50);
+  const deleted = tickets.filter(t => t.status === "deleted").sort((a,b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 50);
 
   return (
     <div style={{ flex:1, overflowY:"auto", display:"flex", flexDirection:"column" }}>
@@ -47,6 +48,7 @@ export function TicketsView({ tickets, projects, onResolve, onConvertToTask }) {
                     <div style={{ display:"flex", gap:8, marginTop:16 }}>
                       <button onClick={() => onConvertToTask(tk)} className="btn btn-primary" style={{ gap:6 }}><ArrowRight style={{width:14,height:14}}/> convert to task</button>
                       <button onClick={() => onResolve(tk.id)} className="btn btn-secondary" style={{ gap:6 }}><CheckCircle2 style={{width:14,height:14}}/> mark resolved</button>
+                      <button onClick={() => { if(window.confirm('Delete this ticket?')) deleteTicket(tk.id); }} className="btn" style={{ background:"transparent", border:"1px solid var(--border)", color:"var(--red)", gap:6 }}>delete</button>
                     </div>
                   </div>
                 );
@@ -75,6 +77,26 @@ export function TicketsView({ tickets, projects, onResolve, onConvertToTask }) {
                       </div>
                     )}
                     <div className="font-mono" style={{ fontSize:10, color:"var(--text-3)", marginTop:8 }}>resolved on {new Date(tk.createdAt).toLocaleDateString()}</div>
+                  </div>
+                );
+              })}
+            </div>
+        )}
+
+        {deleted.length > 0 && (
+          <div style={{ marginTop: 32 }}>
+            <div className="fl" style={{ paddingBottom:8, borderBottom:"1px solid var(--border)", marginBottom:12 }}>deleted requests</div>
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              {deleted.map(tk => {
+                const project = projects.find(p => p.id === tk.projectId);
+                return (
+                  <div key={tk.id} style={{ padding:12, borderRadius:8, background:"rgba(248,113,113,0.05)", border:"1px solid rgba(248,113,113,0.2)" }}>
+                    <div style={{ fontSize:11, color:"var(--text-3)", marginBottom:4 }}>{project?.client} - {project?.name}</div>
+                    <div style={{ fontSize:13, color:"var(--text-2)", lineHeight:1.5, textDecoration: "line-through" }}>"{tk.message}"</div>
+                    <div style={{ display:"flex", justifyContent: "space-between", alignItems: "center", marginTop:8 }}>
+                      <div className="font-mono" style={{ fontSize:10, color:"var(--red)" }}>Deleted by {tk.deleted_by || 'Unknown'}</div>
+                      <button onClick={() => restoreTicket(tk.id)} style={{ background:"transparent", border:"1px solid var(--border)", color:"var(--text-2)", borderRadius:4, padding:"2px 8px", fontSize:10, cursor:"pointer" }}>Restore</button>
+                    </div>
                   </div>
                 );
               })}

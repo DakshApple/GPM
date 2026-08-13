@@ -4,6 +4,7 @@ import { api, supabase } from '../services/db';
 import { uid, toISO, addDays, today, fmtDate, daysBetween } from '../utils/date';
 import { taskStatusMeta } from '../utils/constants';
 import { mail } from '../services/mail';
+import { logAction } from '../services/logger';
 
 export function ClientLogin({ onLogin }) {
   const [email, setEmail] = useState("");
@@ -158,6 +159,15 @@ export function ClientPortal({ project, onLogout }) {
 
   const removeFile = (index) => {
     setSelectedFiles(selectedFiles.filter((_, i) => i !== index));
+  };
+
+  const deleteTicket = async (id) => {
+    const t = tickets.find(x => x.id === id);
+    if (!t) return;
+    const updated = { ...t, status: 'deleted', deleted_by: project.client || 'client' };
+    await api.upsertRow('gpm_tickets', updated);
+    setTickets(tickets.map(x => x.id === id ? updated : x));
+    logAction(project, 'Deleted Request', 'Ticket', id, { ticketMessage: t.message });
   };
 
   const submitTicket = async () => {
@@ -346,12 +356,19 @@ export function ClientPortal({ project, onLogout }) {
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
                           <div style={{ fontSize:13, color:"#fff", lineHeight:1.5 }}>"{tk.message}"</div>
                           {tk.status === "open" && (
-                            <button onClick={() => openTicketModal(tk)} style={{ background:"transparent", border:"1px solid #333", color:"#888", borderRadius:4, padding:"2px 8px", fontSize:11, cursor:"pointer" }}>Edit</button>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button onClick={() => openTicketModal(tk)} style={{ background:"transparent", border:"1px solid #333", color:"#888", borderRadius:4, padding:"2px 8px", fontSize:11, cursor:"pointer" }}>Edit</button>
+                              <button onClick={() => { if(window.confirm('Delete this request?')) deleteTicket(tk.id); }} style={{ background:"transparent", border:"1px solid #333", color:"#F87171", borderRadius:4, padding:"2px 8px", fontSize:11, cursor:"pointer" }}>Delete</button>
+                            </div>
                           )}
                         </div>
                         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
                           <span style={{ fontSize:11, color:"#666" }}>{new Date(tk.createdAt).toLocaleDateString()}</span>
-                          <span style={{ fontSize:11, padding:"2px 6px", borderRadius:4, background: tk.status==="resolved"?"rgba(163,230,53,.1)":"rgba(74,158,255,.1)", color: tk.status==="resolved"?"#A3E635":"#4A9EFF" }}>{tk.status}</span>
+                          {tk.status === 'deleted' ? (
+                            <span style={{ fontSize:11, color:"#F87171", fontStyle: "italic" }}>Deleted by {tk.deleted_by || 'Client'}</span>
+                          ) : (
+                            <span style={{ fontSize:11, padding:"2px 6px", borderRadius:4, background: tk.status==="resolved"?"rgba(163,230,53,.1)":"rgba(74,158,255,.1)", color: tk.status==="resolved"?"#A3E635":"#4A9EFF" }}>{tk.status}</span>
+                          )}
                         </div>
                         {tk.attachments && tk.attachments.length > 0 && (
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>

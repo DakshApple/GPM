@@ -11,7 +11,7 @@ import { TimelineView } from './views/TimelineView';
 import { ProjectsView } from './views/ProjectsView';
 import { ProjectDetail } from './views/ProjectDetail';
 import { TasksView } from './views/TasksView';
-import { TeamView, SuggestionsView, APIVaultView } from './views/index';
+import { TeamView, SuggestionsView, APIVaultView, LogsView } from './views/index';
 import { TicketsView } from './views/TicketsView';
 import { UserManagement } from './views/UserManagement';
 import { IntegrationsView } from './views/IntegrationsView';
@@ -27,6 +27,7 @@ import { uid, toISO, addDays, today } from './utils/date';
 
 import { ClientLogin, ClientPortal } from './views/ClientPortal';
 import { api, supabase } from './services/db';
+import { logAction } from './services/logger';
 
 export default function App() {
   const [init, setInit] = useState(false);
@@ -171,15 +172,18 @@ export default function App() {
   }, []);
 
   // Actions
-  const createProject = async (p) => { await api.upsertRow('gpm_projects', p); const n = [...allProjects, p]; setAllProjects(n); runScheduler({ projects:n, employees, tasks:allTasks, modules, users }); showToast(`project "${p.name}" created`); };
-  const updateProject = async (p) => { await api.upsertRow('gpm_projects', p); const n = allProjects.map(x => x.id===p.id?p:x); setAllProjects(n); runScheduler({ projects:n, employees, tasks:allTasks, modules, users }); showToast("project saved"); };
+  const createProject = async (p) => { await api.upsertRow('gpm_projects', p); const n = [...allProjects, p]; setAllProjects(n); runScheduler({ projects:n, employees, tasks:allTasks, modules, users }); showToast(`project "${p.name}" created`);
+    logAction(account, 'Created Project', 'Project', p.id); };
+  const updateProject = async (p) => { await api.upsertRow('gpm_projects', p); const n = allProjects.map(x => x.id===p.id?p:x); setAllProjects(n); runScheduler({ projects:n, employees, tasks:allTasks, modules, users }); showToast("project saved");
+    logAction(account, 'Updated Project', 'Project', p.id); };
   const createTaskComment = async (comment) => { await api.upsertRow('gpm_task_comments', comment); setTaskComments([...taskComments, comment]); };
   const updateTaskComment = async (comment) => { await api.upsertRow('gpm_task_comments', comment); setTaskComments(taskComments.map(c => c.id === comment.id ? comment : c)); };
 
   const addCredential = async (cred) => { await api.upsertRow('gpm_api_vault', cred); setApiVault([...apiVault, cred]); showToast("Credential added to Vault"); };
   const deleteCredential = async (id) => { await api.deleteRow('gpm_api_vault', id); setApiVault(apiVault.filter(c => c.id !== id)); showToast("Credential removed"); };
 
-  const deleteProject = async (id) => { await api.deleteRow('gpm_projects', id); const n = allProjects.filter(x => x.id!==id); setAllProjects(n); if(openProjectId===id)setOpenProjectId(null); runScheduler({ projects:n, employees, tasks:allTasks, modules, users }); showToast("project deleted"); };
+  const deleteProject = async (id) => { await api.deleteRow('gpm_projects', id); const n = allProjects.filter(x => x.id!==id); setAllProjects(n); if(openProjectId===id)setOpenProjectId(null); runScheduler({ projects:n, employees, tasks:allTasks, modules, users }); showToast("project deleted");
+    logAction(account, 'Deleted Project', 'Project', id); };
   const markProjectDelivered = async (id) => { const p = allProjects.find(x=>x.id===id); if(!p)return; const updated = {...p, status:"delivered", deadline:today()}; await api.upsertRow('gpm_projects', updated); const n = allProjects.map(x => x.id===id?updated:x); setAllProjects(n); runScheduler({ projects:n, employees, tasks:allTasks, modules, users }); showToast("project delivered 🎉"); };
   
   const createTask = async (t) => {
@@ -188,6 +192,7 @@ export default function App() {
     setAllTasks(n);
     runScheduler({ projects:allProjects, employees, tasks:n, modules, users });
     showToast(`task "${t.title}" added`);
+    logAction(account, 'Created Task', 'Task', t.id);
 
     const proj = allProjects.find(p => p.id === t.projectId);
     const assigneeAcc = accounts.find(a => a.id === t.assigneeId || a.username === t.assigneeId) || employees.find(e => e.id === t.assigneeId);
@@ -196,8 +201,10 @@ export default function App() {
       mail.sendTaskAssignedNotification(assigneeEmail, t.title, proj?.name || "Project", t.deadline);
     }
   };
-  const updateTask = async (t) => { await api.upsertRow('gpm_tasks', t); const n = allTasks.map(x => x.id===t.id?t:x); setAllTasks(n); runScheduler({ projects:allProjects, employees, tasks:n, modules, users }); };
-  const deleteTask = async (id) => { await api.deleteRow('gpm_tasks', id); const n = allTasks.filter(x => x.id!==id); setAllTasks(n); runScheduler({ projects:allProjects, employees, tasks:n, modules, users }); };
+  const updateTask = async (t) => { await api.upsertRow('gpm_tasks', t); const n = allTasks.map(x => x.id===t.id?t:x); setAllTasks(n); runScheduler({ projects:allProjects, employees, tasks:n, modules, users });
+    logAction(account, 'Updated Task', 'Task', t.id); };
+  const deleteTask = async (id) => { await api.deleteRow('gpm_tasks', id); const n = allTasks.filter(x => x.id!==id); setAllTasks(n); runScheduler({ projects:allProjects, employees, tasks:n, modules, users });
+    logAction(account, 'Deleted Task', 'Task', id); };
   
   const advanceTask = async (id) => {
     const t = allTasks.find(x => x.id === id); if(!t || t.status==="done") return;
@@ -233,21 +240,42 @@ export default function App() {
     }
   };
   
-  const createModule = async (m) => { await api.upsertRow('gpm_modules', m); const n = [...modules, m]; setModules(n); runScheduler({ projects:allProjects, employees, tasks:allTasks, modules:n, users }); };
-  const updateModuleObj = async (m) => { await api.upsertRow('gpm_modules', m); const n = modules.map(x => x.id===m.id?m:x); setModules(n); runScheduler({ projects:allProjects, employees, tasks:allTasks, modules:n, users }); };
-  const deleteModule = async (id) => { await api.deleteRow('gpm_modules', id); const n = modules.filter(x => x.id!==id); setModules(n); runScheduler({ projects:allProjects, employees, tasks:allTasks, modules:n, users }); };
+  const createModule = async (m) => { await api.upsertRow('gpm_modules', m); const n = [...modules, m]; setModules(n); runScheduler({ projects:allProjects, employees, tasks:allTasks, modules:n, users });
+    logAction(account, 'Created Module', 'Module', m.id); };
+  const updateModuleObj = async (m) => { await api.upsertRow('gpm_modules', m); const n = modules.map(x => x.id===m.id?m:x); setModules(n); runScheduler({ projects:allProjects, employees, tasks:allTasks, modules:n, users });
+    logAction(account, 'Updated Module', 'Module', m.id); };
+  const deleteModule = async (id) => { await api.deleteRow('gpm_modules', id); const n = modules.filter(x => x.id!==id); setModules(n); runScheduler({ projects:allProjects, employees, tasks:allTasks, modules:n, users });
+    logAction(account, 'Deleted Module', 'Module', id); };
   
   const addEmployee = async (e) => { await api.upsertRow('gpm_employees', e); const n = [...employees, e]; setEmployees(n); runScheduler({ projects:allProjects, employees:n, tasks:allTasks, modules, users }); showToast(`added ${e.name}`); };
   const addUpdate = async (u) => { await api.upsertRow('gpm_updates', u); setUpdates([...updates, u]); };
   
   const addDeliverable = async (d) => { await api.upsertRow('gpm_deliverables', d); setDeliverables([...deliverables, d]); };
   const deleteDeliverable = async (id) => { await api.deleteRow('gpm_deliverables', id); setDeliverables(deliverables.filter(x => x.id !== id)); };
+  const deleteTicket = async (id) => {
+    const t = tickets.find(x => x.id === id);
+    if(!t) return;
+    const updated = { ...t, status: 'deleted', deleted_by: account?.id || 'unknown' };
+    await api.upsertRow('gpm_tickets', updated);
+    setTickets(tickets.map(x => x.id === id ? updated : x));
+    logAction(account, 'Deleted Ticket', 'Ticket', id, { ticketMessage: t.message });
+  };
+  const restoreTicket = async (id) => {
+    const t = tickets.find(x => x.id === id);
+    if(!t) return;
+    const updated = { ...t, status: 'open', deleted_by: null };
+    await api.upsertRow('gpm_tickets', updated);
+    setTickets(tickets.map(x => x.id === id ? updated : x));
+    logAction(account, 'Restored Ticket', 'Ticket', id, { ticketMessage: t.message });
+  };
+
 
   // Account management
   const createAccount = async (acc) => { 
     await api.upsertRow('gpm_accounts', acc); 
     setAccounts([...accounts, acc]); 
     showToast(`account "${acc.username}" created`);
+    logAction(account, 'Created User Account', 'Account', acc.id);
     
     if (acc.assignedProjectIds && acc.assignedProjectIds.length > 0) {
       const targetEmail = acc.notificationEmail || acc.notification_email || acc.email;
@@ -264,6 +292,7 @@ export default function App() {
     await api.upsertRow('gpm_accounts', acc); 
     setAccounts(accounts.map(a => a.id === acc.id ? acc : a)); 
     showToast("account updated"); 
+    logAction(account, 'Updated User Account', 'Account', acc.id); 
     
     // Check for new project assignments
     if (oldAcc && acc.assignedProjectIds) {
@@ -278,7 +307,8 @@ export default function App() {
       }
     }
   };
-  const deleteAccount = async (id) => { await api.deleteRow('gpm_accounts', id); setAccounts(accounts.filter(a => a.id !== id)); showToast("account deleted"); };
+  const deleteAccount = async (id) => { await api.deleteRow('gpm_accounts', id); setAccounts(accounts.filter(a => a.id !== id)); showToast("account deleted");
+    logAction(account, 'Deleted User Account', 'Account', id); };
 
   const applySuggestion = async (id) => {
     const s = suggestions.find(x => x.id === id); if(!s) return;
@@ -400,8 +430,9 @@ export default function App() {
       {view === "tasks" && hasFeature("tasks") && <TasksView tasks={tasks} projects={projects} employees={employees} users={users} currentUser={user} openTaskById={(id) => setTaskModalInitial(tasks.find(x=>x.id===id))} onNewTask={setTaskModalInitial} onAdvanceTask={advanceTask} onUpdateTaskStatus={updateTaskStatus} />}
       {view === "team" && hasFeature("team_view") && <TeamView users={users} employees={employees} projects={projects} tasks={tasks} onNewEmployee={isAdmin ? () => setShowNE(true) : undefined} />}
       {view === "ai" && hasFeature("ai") && <SuggestionsView suggestions={suggestions} applySuggestion={applySuggestion} dismissSuggestion={dismissSuggestion} />}
-      {view === "tickets" && hasFeature("tickets") && <TicketsView tickets={tickets} projects={projects} onResolve={resolveTicket} onConvertToTask={(tk) => { setTaskModalInitial({ projectId: tk.projectId, title: tk.message, priority: tk.priority, deadline: tk.deadline, clientTitle: tk.message, isClientVisible: true }); }} />}
+      {view === "tickets" && hasFeature("tickets") && <TicketsView tickets={tickets} projects={projects} onResolve={resolveTicket} onConvertToTask={(tk) => { setTaskModalInitial({ projectId: tk.projectId, title: tk.message, priority: tk.priority, deadline: tk.deadline, clientTitle: tk.message, isClientVisible: true }); }} deleteTicket={deleteTicket} restoreTicket={restoreTicket} />}
       {view === "manage_users" && isAdmin && <UserManagement accounts={accounts} projects={allProjects} onCreateAccount={createAccount} onUpdateAccount={updateAccount} onDeleteAccount={deleteAccount} />}
+      {view === "logs" && isAdmin && <LogsView account={account} />}
       {view === "integrations" && <IntegrationsView account={account} />}
       {view === "drive" && <GoogleDriveView account={account} />}
       {view === "gmail" && <GmailView account={account} />}
