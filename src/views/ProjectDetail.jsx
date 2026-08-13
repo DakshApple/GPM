@@ -15,7 +15,7 @@ export function ProjectDetail({ project, projects, employees, users, updates, ta
   const [draft, setDraft] = useState(project);
   const c = colorFor(project.color);
   
-  useEffect(() => { setDraft(project); setEditing(false); }, [project.id, project]);
+  useEffect(() => { setDraft(project); setEditing(false); }, [project.id]);
   
   const projTasks = tasks.filter(t => t.projectId === project.id);
   const projModules = modules.filter(m => m.projectId === project.id).sort((a,b) => a.order - b.order);

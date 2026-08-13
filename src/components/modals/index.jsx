@@ -114,7 +114,7 @@ export function TaskModal({ open, initial, projects, modules, employees, users, 
         deadline: toISO(addDays(new Date(), 7)), estimatedHours: 4,
       });
     }
-  }, [open, initial, projects, employees]);
+  }, [open, initial?.id, projects, employees]);
 
   if (!open || !draft) return null;
   const set = (k,v) => setDraft({...draft,[k]:v});
