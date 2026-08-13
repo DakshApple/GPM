@@ -17,6 +17,7 @@ export function GoogleChatView({ account }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showMembers, setShowMembers] = useState(false);
   const [error, setError] = useState(null);
+  const [debugLog, setDebugLog] = useState('');
   const [userCache, setUserCache] = useState({});
 
   const messagesEndRef = useRef(null);
@@ -95,13 +96,17 @@ export function GoogleChatView({ account }) {
       const response = await chatAPI.getMembers(token, spaceName);
       if (response && Array.isArray(response)) {
         setMembers(response);
+        setDebugLog(prev => prev + `\nLoaded ${response.length} members for ${spaceName}`);
       } else if (response && response.memberships) {
         setMembers(response.memberships);
+        setDebugLog(prev => prev + `\nLoaded ${response.memberships.length} members for ${spaceName}`);
       } else {
         setMembers([]);
+        setDebugLog(prev => prev + `\nNo members array in response for ${spaceName}`);
       }
     } catch (err) {
       console.error("Failed to load members", err);
+      setDebugLog(prev => prev + `\nError loading members: ${err.message}`);
       setMembers([]);
     }
   }, [token]);
@@ -170,6 +175,7 @@ export function GoogleChatView({ account }) {
                  }
               } catch (err) {
                  console.warn('People API fallback failed for', id, err);
+                 setDebugLog(prev => prev + `\nPeople API failed: ${err.message}`);
               }
             }
 
@@ -403,8 +409,9 @@ export function GoogleChatView({ account }) {
                     <h3 className="font-display" style={{ margin: 0, fontSize: 16 }}>
                       {selectedSpace.displayName || (selectedSpace.spaceType === 'DIRECT_MESSAGE' ? 'Direct Message' : 'Group Chat')}
                     </h3>
-                    <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
-                      {members.length} member{members.length !== 1 ? 's' : ''}
+                    <div style={{ fontSize: 12, color: 'var(--text-3)', display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <span>{members.length} member{members.length !== 1 ? 's' : ''}</span>
+                      {debugLog && <span style={{ color: 'var(--red)', fontSize: 10, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={debugLog}>(Hover for debug logs)</span>}
                     </div>
                   </div>
                 </div>
