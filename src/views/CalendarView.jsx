@@ -1,11 +1,18 @@
-import React, { useState, useCallback } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, X, Sparkles } from 'lucide-react';
 import { Topbar } from '../components/layout';
 import { toISO, fromISO, today } from '../utils/date';
 import { colorFor, PALETTE } from '../utils/constants';
+import { generateDayOverview } from '../services/ai';
+import ReactMarkdown from 'react-markdown';
 
 export function CalendarView({ projects, tasks, employees, users, onOpenProject, openTaskById }) {
   const [cursor, setCursor] = useState(() => { const d = new Date(); d.setDate(1); return d; });
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [aiInsight, setAiInsight] = useState("");
+  const [loadingInsight, setLoadingInsight] = useState(false);
+  const [insightError, setInsightError] = useState("");
+
   const monthLabel = cursor.toLocaleDateString("en-US", { month:"long", year:"numeric" });
   const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
   const startWeekday = first.getDay();
@@ -21,6 +28,37 @@ export function CalendarView({ projects, tasks, employees, users, onOpenProject,
 
   const allPeople = [...users, ...employees];
   const getAssigneeName = (id) => { const p = allPeople.find(x => x.id === id); return p ? p.name.split(' ')[0] : 'Unassigned'; };
+
+  const handleDateClick = async (iso) => {
+    if (!iso) return;
+    setSelectedDate(iso);
+    setLoadingInsight(true);
+    setAiInsight("");
+    setInsightError("");
+
+    const activeProjects = projectsForDay(iso);
+    const dueTasks = tasksDueOnDay(iso);
+
+    try {
+      const context = {
+        projects: activeProjects,
+        tasks: dueTasks,
+        employees: allPeople
+      };
+      
+      // Check if there is anything to summarize
+      if (activeProjects.length === 0 && dueTasks.length === 0) {
+        setAiInsight("There is no scheduled work or active projects for this day.");
+      } else {
+        const insight = await generateDayOverview(fromISO(iso).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }), context);
+        setAiInsight(insight);
+      }
+    } catch (err) {
+      setInsightError(err.message);
+    } finally {
+      setLoadingInsight(false);
+    }
+  };
 
   return (
     <div style={{ flex:1, overflowY:"auto", display:"flex", flexDirection:"column" }}>
@@ -55,9 +93,17 @@ export function CalendarView({ projects, tasks, employees, users, onOpenProject,
             const dayNum = fromISO(iso).getDate();
             const isWE = i%7===0||i%7===6;
             return (
-              <div key={i} style={{ borderRadius:6, padding:6, display:"flex", flexDirection:"column", overflow:"hidden", minHeight:110,
+              <div key={i} onClick={(e) => {
+                // Prevent click if they clicked a project or task button
+                if (e.target.closest('button')) return;
+                handleDateClick(iso);
+              }} style={{ borderRadius:6, padding:6, display:"flex", flexDirection:"column", overflow:"hidden", minHeight:110,
                 background: isToday ? "rgba(245,166,35,.06)" : "var(--surface)",
-                border: isToday ? "1px solid rgba(245,166,35,.4)" : "1px solid var(--border)" }}>
+                border: isToday ? "1px solid rgba(245,166,35,.4)" : "1px solid var(--border)",
+                cursor: "pointer", transition: "border-color 0.2s" }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = "var(--blue)"}
+                onMouseLeave={e => e.currentTarget.style.borderColor = isToday ? "rgba(245,166,35,.4)" : "var(--border)"}
+              >
                 <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
                   <span className="font-mono" style={{ fontSize:11, fontWeight:500, color: isToday ? "var(--amber)" : isWE ? "var(--text-3)" : "var(--text-2)" }}>{dayNum}</span>
                   {ap.length > 3 && <span className="font-mono" style={{ fontSize:9, color:"var(--text-3)" }}>+{ap.length-3}</span>}
@@ -67,7 +113,7 @@ export function CalendarView({ projects, tasks, employees, users, onOpenProject,
                     const c = colorFor(p.color);
                     const isStart = iso === p.startDate, isEnd = iso === p.deadline;
                     return (
-                      <button key={p.id} onClick={() => onOpenProject(p.id)} title={`${p.name} · ${p.client}`}
+                      <button key={p.id} onClick={(e) => { e.stopPropagation(); onOpenProject(p.id); }} title={`${p.name} · ${p.client}`}
                         style={{ width:"100%", textAlign:"left", fontSize:10, padding:"2px 6px", borderRadius:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
                           background:c.bg, borderLeft:`2px solid ${c.ring}`, color:"var(--text)", border:`1px solid ${c.border}`, borderLeftWidth:2, cursor:"pointer" }}>
                         {isEnd ? "⚑ " : isStart ? "▸ " : ""}{p.name}
@@ -82,7 +128,7 @@ export function CalendarView({ projects, tasks, employees, users, onOpenProject,
                       const c = p ? colorFor(p.color) : PALETTE[0];
                       const assigneeName = getAssigneeName(t.assigneeId);
                       return (
-                        <button key={t.id} onClick={() => openTaskById(t.id)} title={`${t.title} - ${assigneeName}`}
+                        <button key={t.id} onClick={(e) => { e.stopPropagation(); openTaskById(t.id); }} title={`${t.title} - ${assigneeName}`}
                           style={{ width:"100%", display:"flex", alignItems:"center", gap:4, textAlign:"left", fontSize:10, padding:"2px 4px", borderRadius:3, background:"var(--surface-2)", color:"var(--text-2)", border:"1px solid var(--border)", cursor:"pointer", overflow:"hidden" }}>
                           <div style={{ width:6, height:6, borderRadius:3, background:c.ring, flexShrink:0 }} />
                           <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1 }}>{t.title}</span>
@@ -98,6 +144,45 @@ export function CalendarView({ projects, tasks, employees, users, onOpenProject,
           })}
         </div>
       </div>
+
+      {/* AI Overview Modal */}
+      {selectedDate && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }} onClick={() => setSelectedDate(null)}>
+          <div className="scale-in" style={{ width: "100%", maxWidth: 600, background: "var(--bg)", borderRadius: 16, border: "1px solid var(--border)", boxShadow: "0 24px 48px rgba(0,0,0,0.2)", display: "flex", flexDirection: "column", maxHeight: "85vh" }} onClick={e => e.stopPropagation()}>
+            <div style={{ padding: 24, borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <h3 className="font-display" style={{ fontSize: 20, fontWeight: 600, margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                  <Sparkles size={20} color="var(--purple)" /> AI Day Overview
+                </h3>
+                <p style={{ fontSize: 13, color: "var(--text-2)", margin: "4px 0 0 0" }}>
+                  {fromISO(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                </p>
+              </div>
+              <button className="btn btn-ghost" onClick={() => setSelectedDate(null)} style={{ padding: 8 }}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div style={{ padding: 24, overflowY: "auto", flex: 1, color: "var(--text)" }}>
+              {loadingInsight ? (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "48px 0", color: "var(--text-3)" }}>
+                  <div style={{ width: 24, height: 24, borderRadius: 12, border: "2px solid var(--purple)", borderTopColor: "transparent", animation: "spin 1s linear infinite", marginBottom: 16 }} />
+                  <p style={{ fontSize: 14 }}>Analyzing workload and projects...</p>
+                </div>
+              ) : insightError ? (
+                <div style={{ padding: 16, background: "rgba(248, 113, 113, 0.1)", color: "var(--red)", borderRadius: 8, fontSize: 14 }}>
+                  <p style={{ margin: "0 0 8px 0", fontWeight: 600 }}>Unable to generate insight</p>
+                  {insightError}
+                </div>
+              ) : (
+                <div className="markdown-body" style={{ fontSize: 14, lineHeight: 1.6 }}>
+                  <ReactMarkdown>{aiInsight}</ReactMarkdown>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
