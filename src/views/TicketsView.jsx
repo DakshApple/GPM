@@ -1,5 +1,5 @@
 import React from 'react';
-import { MessageSquare, CheckCircle2, ArrowRight } from 'lucide-react';
+import { MessageSquare, CheckCircle2, ArrowRight, Paperclip } from 'lucide-react';
 import { Topbar } from '../components/layout';
 
 export function TicketsView({ tickets, projects, onResolve, onConvertToTask }) {
@@ -35,6 +35,15 @@ export function TicketsView({ tickets, projects, onResolve, onConvertToTask }) {
                       {tk.deadline && <span className="font-mono" style={{ fontSize:10, padding:"2px 8px", borderRadius:4, background:"var(--surface-3)", color:"var(--text-2)" }}>Deadline: {new Date(tk.deadline).toLocaleDateString()}</span>}
                       {tk.isEdited && <span style={{ fontSize:10, padding:"2px 8px", borderRadius:4, background:"rgba(255,255,255,0.1)", color:"var(--text)", display:"flex", alignItems:"center", gap:4 }}>⚠️ Edited by Client</span>}
                     </div>
+                    {tk.attachments && tk.attachments.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+                        {tk.attachments.map((a, i) => (
+                          <a key={i} href={a.url} target="_blank" rel="noreferrer" style={{ fontSize: 11, padding: '6px 10px', borderRadius: 6, background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--blue)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, transition: 'background 0.2s' }}>
+                            <Paperclip size={12} /> {a.name}
+                          </a>
+                        ))}
+                      </div>
+                    )}
                     <div style={{ display:"flex", gap:8, marginTop:16 }}>
                       <button onClick={() => onConvertToTask(tk)} className="btn btn-primary" style={{ gap:6 }}><ArrowRight style={{width:14,height:14}}/> convert to task</button>
                       <button onClick={() => onResolve(tk.id)} className="btn btn-secondary" style={{ gap:6 }}><CheckCircle2 style={{width:14,height:14}}/> mark resolved</button>
@@ -56,6 +65,15 @@ export function TicketsView({ tickets, projects, onResolve, onConvertToTask }) {
                   <div key={tk.id} style={{ padding:12, borderRadius:8, background:"var(--surface)", border:"1px solid var(--border)" }}>
                     <div style={{ fontSize:11, color:"var(--text-3)", marginBottom:4 }}>{project?.client} - {project?.name}</div>
                     <div style={{ fontSize:13, color:"var(--text-2)", lineHeight:1.5 }}>"{tk.message}"</div>
+                    {tk.attachments && tk.attachments.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                        {tk.attachments.map((a, i) => (
+                          <a key={i} href={a.url} target="_blank" rel="noreferrer" style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'var(--bg)', border: '1px dashed var(--border)', color: 'var(--text-2)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <Paperclip size={10} /> {a.name}
+                          </a>
+                        ))}
+                      </div>
+                    )}
                     <div className="font-mono" style={{ fontSize:10, color:"var(--text-3)", marginTop:8 }}>resolved on {new Date(tk.createdAt).toLocaleDateString()}</div>
                   </div>
                 );

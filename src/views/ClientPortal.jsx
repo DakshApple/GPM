@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Search, ChevronRight, CheckCircle2, MessageSquare, Plus, ArrowRight, Shield, FolderKanban, Clock, Download, ExternalLink, FileText } from 'lucide-react';
-import { api } from '../services/db';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, ChevronRight, CheckCircle2, MessageSquare, Plus, ArrowRight, Shield, FolderKanban, Clock, Download, ExternalLink, FileText, Paperclip, X } from 'lucide-react';
+import { api, supabase } from '../services/db';
 import { uid, toISO, addDays, today, fmtDate, daysBetween } from '../utils/date';
 import { taskStatusMeta } from '../utils/constants';
 import { mail } from '../services/mail';
@@ -69,9 +69,12 @@ export function ClientPortal({ project, onLogout }) {
   const [modules, setModules] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [deliverables, setDeliverables] = useState([]);
-  const [ticketDraft, setTicketDraft] = useState({ message:"", priority:"medium", deadline:"" });
+  const [ticketDraft, setTicketDraft] = useState({ message:"", priority:"medium", deadline:"", attachments: [] });
   const [showTicket, setShowTicket] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
   const fetchData = async () => {
     const t = await api.getTable('gpm_tasks');
@@ -92,34 +95,75 @@ export function ClientPortal({ project, onLogout }) {
 
   const openTicketModal = (tk = null) => {
     if (tk) {
-      setTicketDraft({ id: tk.id, message: tk.message, priority: tk.priority, deadline: tk.deadline || "" });
+      setTicketDraft({ id: tk.id, message: tk.message, priority: tk.priority, deadline: tk.deadline || "", attachments: tk.attachments || [] });
     } else {
-      setTicketDraft({ id: null, message:"", priority:"medium", deadline:"" });
+      setTicketDraft({ id: null, message:"", priority:"medium", deadline:"", attachments: [] });
     }
+    setSelectedFiles([]);
     setShowTicket(true);
   };
 
-  const submitTicket = async () => {
-    if (!ticketDraft.message.trim()) return;
-    
-    if (ticketDraft.id) {
-      const existing = tickets.find(t => t.id === ticketDraft.id);
-      const tk = { ...existing, message: ticketDraft.message.trim(), priority: ticketDraft.priority, deadline: ticketDraft.deadline || null, isEdited: true };
-      await api.upsertRow('gpm_tickets', tk);
-      setTickets(tickets.map(t => t.id === ticketDraft.id ? tk : t));
-    } else {
-      const tkId = `REQ-${Math.floor(1000 + Math.random() * 9000)}`;
-      const tk = { id: tkId, projectId: project.id, message: ticketDraft.message.trim(), priority: ticketDraft.priority, deadline: ticketDraft.deadline || null, status: 'open', isEdited: false, createdAt: new Date().toISOString() };
-      await api.upsertRow('gpm_tickets', tk);
-      setTickets([...tickets, tk]);
-      if (project.clientEmail) {
-        mail.sendTicketAcknowledgement(project.clientEmail, tkId, tk.message, project.name);
-      }
-      mail.sendTeamNotification(tkId, tk.message, project.name, tk.priority, tk.deadline);
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (selectedFiles.length + files.length > 20) {
+      alert("You can only upload a maximum of 20 files.");
+      return;
     }
-    
-    setTicketDraft({ id: null, message:"", priority:"medium", deadline:"" });
-    setShowTicket(false);
+    setSelectedFiles([...selectedFiles, ...files]);
+  };
+
+  const removeFile = (index) => {
+    setSelectedFiles(selectedFiles.filter((_, i) => i !== index));
+  };
+
+  const submitTicket = async () => {
+    if (!ticketDraft.message.trim() && selectedFiles.length === 0) return;
+    setUploading(true);
+
+    try {
+      let uploadedAttachments = [...ticketDraft.attachments];
+
+      if (selectedFiles.length > 0) {
+        const uploadPromises = selectedFiles.map(async (file) => {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${uid()}.${fileExt}`;
+          const filePath = `${project.id}/${fileName}`;
+          
+          const { data, error } = await supabase.storage.from('ticket-attachments').upload(filePath, file);
+          if (error) throw error;
+          
+          const { data: { publicUrl } } = supabase.storage.from('ticket-attachments').getPublicUrl(filePath);
+          return { name: file.name, url: publicUrl, size: file.size, type: file.type };
+        });
+
+        const newAttachments = await Promise.all(uploadPromises);
+        uploadedAttachments = [...uploadedAttachments, ...newAttachments];
+      }
+
+      if (ticketDraft.id) {
+        const existing = tickets.find(t => t.id === ticketDraft.id);
+        const tk = { ...existing, message: ticketDraft.message.trim(), priority: ticketDraft.priority, deadline: ticketDraft.deadline || null, attachments: uploadedAttachments, isEdited: true };
+        await api.upsertRow('gpm_tickets', tk);
+        setTickets(tickets.map(t => t.id === ticketDraft.id ? tk : t));
+      } else {
+        const tkId = `REQ-${Math.floor(1000 + Math.random() * 9000)}`;
+        const tk = { id: tkId, projectId: project.id, message: ticketDraft.message.trim(), priority: ticketDraft.priority, deadline: ticketDraft.deadline || null, attachments: uploadedAttachments, status: 'open', isEdited: false, createdAt: new Date().toISOString() };
+        await api.upsertRow('gpm_tickets', tk);
+        setTickets([...tickets, tk]);
+        if (project.clientEmail) {
+          mail.sendTicketAcknowledgement(project.clientEmail, tkId, tk.message, project.name);
+        }
+        mail.sendTeamNotification(tkId, tk.message, project.name, tk.priority, tk.deadline);
+      }
+      
+      setTicketDraft({ id: null, message:"", priority:"medium", deadline:"", attachments: [] });
+      setSelectedFiles([]);
+      setShowTicket(false);
+    } catch (error) {
+      alert("Error submitting request: " + error.message);
+    } finally {
+      setUploading(false);
+    }
   };
 
   const doneTasks = tasks.filter(t => t.status === "done");
@@ -260,10 +304,19 @@ export function ClientPortal({ project, onLogout }) {
                             <button onClick={() => openTicketModal(tk)} style={{ background:"transparent", border:"1px solid #333", color:"#888", borderRadius:4, padding:"2px 8px", fontSize:11, cursor:"pointer" }}>Edit</button>
                           )}
                         </div>
-                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
                           <span style={{ fontSize:11, color:"#666" }}>{new Date(tk.createdAt).toLocaleDateString()}</span>
                           <span style={{ fontSize:11, padding:"2px 6px", borderRadius:4, background: tk.status==="resolved"?"rgba(163,230,53,.1)":"rgba(74,158,255,.1)", color: tk.status==="resolved"?"#A3E635":"#4A9EFF" }}>{tk.status}</span>
                         </div>
+                        {tk.attachments && tk.attachments.length > 0 && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                            {tk.attachments.map((a, i) => (
+                              <a key={i} href={a.url} target="_blank" rel="noreferrer" style={{ fontSize: 11, padding: '4px 8px', borderRadius: 4, background: '#1E1E22', color: '#4A9EFF', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <Paperclip size={12} /> {a.name}
+                              </a>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -358,15 +411,53 @@ export function ClientPortal({ project, onLogout }) {
 
       {/* Ticket Modal */}
       {showTicket && (
-        <div style={{ position:"fixed", inset:0, zIndex:100, display:"flex", alignItems:"center", justifyContent:"center", padding:24, background:"rgba(0,0,0,.8)", backdropFilter:"blur(4px)" }} onClick={() => setShowTicket(false)}>
-          <div className="scale-in" style={{ width:"100%", maxWidth:480, borderRadius:16, background:"#141415", border:"1px solid #2A2A2E", padding:32 }} onClick={e => e.stopPropagation()}>
+        <div style={{ position:"fixed", inset:0, zIndex:100, display:"flex", alignItems:"center", justifyContent:"center", padding:24, background:"rgba(0,0,0,.8)", backdropFilter:"blur(4px)" }} onClick={() => !uploading && setShowTicket(false)}>
+          <div className="scale-in" style={{ width:"100%", maxWidth:480, borderRadius:16, background:"#141415", border:"1px solid #2A2A2E", padding:32, maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
             <h3 className="font-display" style={{ fontSize:24, fontWeight:500, color:"#fff", margin:0, marginBottom:8 }}>Request Change</h3>
             <p style={{ fontSize:14, color:"#888", marginBottom:24 }}>Describe what you need. This will alert the engineering team directly.</p>
-            <textarea value={ticketDraft.message} onChange={e => setTicketDraft({...ticketDraft, message:e.target.value})} rows={4} placeholder="e.g. Could we update the hero image on the home page?" style={{ width:"100%", padding:12, borderRadius:8, background:"#0A0A0B", border:"1px solid #333", color:"#fff", resize:"none", marginBottom:16, boxSizing:"border-box" }} autoFocus />
+            <textarea value={ticketDraft.message} onChange={e => setTicketDraft({...ticketDraft, message:e.target.value})} rows={4} placeholder="e.g. Could we update the hero image on the home page?" style={{ width:"100%", padding:12, borderRadius:8, background:"#0A0A0B", border:"1px solid #333", color:"#fff", resize:"none", marginBottom:16, boxSizing:"border-box" }} autoFocus disabled={uploading} />
+            
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <label style={{ fontSize: 12, color: '#888' }}>Attachments ({ticketDraft.attachments.length + selectedFiles.length}/20)</label>
+                <button onClick={() => fileInputRef.current?.click()} disabled={uploading || (ticketDraft.attachments.length + selectedFiles.length >= 20)} style={{ background: 'none', border: 'none', color: '#4A9EFF', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Paperclip size={12} /> Add Files
+                </button>
+                <input type="file" multiple ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
+              </div>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {ticketDraft.attachments.map((file, i) => (
+                  <div key={`existing-${i}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: '#1E1E22', borderRadius: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
+                      <Paperclip size={14} color="#888" />
+                      <span style={{ fontSize: 13, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.name}</span>
+                    </div>
+                    <a href={file.url} target="_blank" rel="noreferrer" style={{ color: '#4A9EFF', fontSize: 12, textDecoration: 'none' }}>View</a>
+                  </div>
+                ))}
+                
+                {selectedFiles.map((file, i) => (
+                  <div key={`new-${i}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: '#1E1E22', borderRadius: 8, border: '1px dashed #333' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
+                      <Paperclip size={14} color="#888" />
+                      <span style={{ fontSize: 13, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.name}</span>
+                      <span style={{ fontSize: 11, color: '#666' }}>({Math.round(file.size/1024)}kb)</span>
+                    </div>
+                    {!uploading && (
+                      <button onClick={() => removeFile(i)} style={{ background: 'none', border: 'none', color: '#F87171', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:24 }}>
               <div>
                 <label style={{ display:"block", fontSize:12, color:"#888", marginBottom:4 }}>Priority</label>
-                <select value={ticketDraft.priority} onChange={e => setTicketDraft({...ticketDraft, priority:e.target.value})} style={{ width:"100%", padding:10, borderRadius:8, background:"#0A0A0B", border:"1px solid #333", color:"#fff", boxSizing:"border-box" }}>
+                <select value={ticketDraft.priority} onChange={e => setTicketDraft({...ticketDraft, priority:e.target.value})} style={{ width:"100%", padding:10, borderRadius:8, background:"#0A0A0B", border:"1px solid #333", color:"#fff", boxSizing:"border-box" }} disabled={uploading}>
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
                   <option value="high">High</option>
@@ -374,12 +465,14 @@ export function ClientPortal({ project, onLogout }) {
               </div>
               <div>
                 <label style={{ display:"block", fontSize:12, color:"#888", marginBottom:4 }}>Deadline (Optional)</label>
-                <input type="date" value={ticketDraft.deadline} onChange={e => setTicketDraft({...ticketDraft, deadline:e.target.value})} style={{ width:"100%", padding:10, borderRadius:8, background:"#0A0A0B", border:"1px solid #333", color:"#fff", boxSizing:"border-box" }} />
+                <input type="date" value={ticketDraft.deadline} onChange={e => setTicketDraft({...ticketDraft, deadline:e.target.value})} style={{ width:"100%", padding:10, borderRadius:8, background:"#0A0A0B", border:"1px solid #333", color:"#fff", boxSizing:"border-box" }} disabled={uploading} />
               </div>
             </div>
             <div style={{ display:"flex", justifyContent:"flex-end", gap:12 }}>
-              <button onClick={() => setShowTicket(false)} style={{ padding:"10px 16px", borderRadius:8, background:"transparent", border:"none", color:"#888", cursor:"pointer" }}>Cancel</button>
-              <button onClick={submitTicket} disabled={!ticketDraft.message.trim()} className="btn" style={{ background:"#fff", color:"#000", fontWeight:500 }}>Submit Request</button>
+              <button onClick={() => setShowTicket(false)} disabled={uploading} style={{ padding:"10px 16px", borderRadius:8, background:"transparent", border:"none", color:"#888", cursor:"pointer" }}>Cancel</button>
+              <button onClick={submitTicket} disabled={uploading || (!ticketDraft.message.trim() && selectedFiles.length === 0)} className="btn" style={{ background:"#fff", color:"#000", fontWeight:500 }}>
+                {uploading ? "Uploading & Submitting..." : "Submit Request"}
+              </button>
             </div>
           </div>
         </div>

@@ -172,6 +172,9 @@ export default function App() {
   const createTaskComment = async (comment) => { await api.upsertRow('gpm_task_comments', comment); setTaskComments([...taskComments, comment]); };
   const updateTaskComment = async (comment) => { await api.upsertRow('gpm_task_comments', comment); setTaskComments(taskComments.map(c => c.id === comment.id ? comment : c)); };
 
+  const addCredential = async (cred) => { await api.upsertRow('gpm_api_vault', cred); setApiVault([...apiVault, cred]); showToast("Credential added to Vault"); };
+  const deleteCredential = async (id) => { await api.deleteRow('gpm_api_vault', id); setApiVault(apiVault.filter(c => c.id !== id)); showToast("Credential removed"); };
+
   const deleteProject = async (id) => { await api.deleteRow('gpm_projects', id); const n = allProjects.filter(x => x.id!==id); setAllProjects(n); if(openProjectId===id)setOpenProjectId(null); runScheduler({ projects:n, employees, tasks:allTasks, modules, users }); showToast("project deleted"); };
   const markProjectDelivered = async (id) => { const p = allProjects.find(x=>x.id===id); if(!p)return; const updated = {...p, status:"delivered", deadline:today()}; await api.upsertRow('gpm_projects', updated); const n = allProjects.map(x => x.id===id?updated:x); setAllProjects(n); runScheduler({ projects:n, employees, tasks:allTasks, modules, users }); showToast("project delivered 🎉"); };
   
@@ -333,7 +336,7 @@ export default function App() {
       {view === "drive" && <GoogleDriveView account={account} />}
       {view === "gmail" && <GmailView account={account} />}
       {view === "gchat" && <GoogleChatView account={account} />}
-      {view === "vault" && hasFeature("vault") && <APIVaultView account={account} projects={projects} apiVault={apiVault} apiVaultAccess={apiVaultAccess} />}
+      {view === "vault" && hasFeature("vault") && <APIVaultView account={account} projects={projects} apiVault={apiVault} apiVaultAccess={apiVaultAccess} onAddCredential={addCredential} onDeleteCredential={deleteCredential} onUpdateProject={updateProject} />}
 
       {openProjectId && <ProjectDetail project={projects.find(p=>p.id===openProjectId)} projects={projects} employees={employees} users={users} updates={updates} tasks={tasks} modules={modules} deliverables={deliverables} onClose={()=>setOpenProjectId(null)} onSave={updateProject} onDelete={deleteProject} onAddUpdate={addUpdate} onAddDeliverable={addDeliverable} onDeleteDeliverable={deleteDeliverable} onMarkDelivered={markProjectDelivered} onCreateTask={createTask} onEditTask={updateTask} onAdvanceTask={advanceTask} onDeleteTask={deleteTask} onCreateModule={createModule} onUpdateModule={updateModuleObj} onDeleteModule={deleteModule} />}
 
