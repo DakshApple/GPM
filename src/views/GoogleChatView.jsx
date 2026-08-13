@@ -5,6 +5,7 @@ import { MessageSquare, Send, Users, Hash, RefreshCw, Search, Smile, Paperclip, 
 
 export function GoogleChatView({ account }) {
   const [token, setToken] = useState(null);
+  const [googleUser, setGoogleUser] = useState(null);
   const [spaces, setSpaces] = useState([]);
   const [filteredSpaces, setFilteredSpaces] = useState([]);
   const [selectedSpace, setSelectedSpace] = useState(null);
@@ -28,6 +29,7 @@ export function GoogleChatView({ account }) {
       const tokenData = getGoogleToken(account.id);
       if (tokenData?.accessToken) {
         setToken(tokenData.accessToken);
+        setGoogleUser(tokenData);
       } else {
         setLoading(false);
         setError("Connect Google in Integrations to view chat.");
@@ -151,7 +153,9 @@ export function GoogleChatView({ account }) {
       await loadMessages(selectedSpace.name, false);
     } catch (err) {
       console.error("Failed to send message", err);
-      // Could show a toast or inline error
+      alert("Failed to send message: " + err.message);
+      // Restore the message text if failed
+      setNewMessage(text);
     }
   };
 
@@ -206,15 +210,15 @@ export function GoogleChatView({ account }) {
   };
 
   const getSenderName = (sender) => {
-    return sender?.displayName || sender?.name || 'Unknown';
+    return sender?.displayName || sender?.name || 'Unknown User';
   };
 
   const isCurrentUser = (sender) => {
     if (!sender) return false;
-    // Assuming the API provides a type or some indicator, or matching against account display name
-    // For this example, we fallback to string comparison with account displayName
     if (sender.type === 'BOT') return false;
-    return (sender.displayName === account.displayName) || false; // Modify according to actual user identity structure
+    // Match against the connected Google user's name
+    if (googleUser?.name && sender.displayName === googleUser.name) return true;
+    return false;
   };
 
   if (!token) {
@@ -358,17 +362,15 @@ export function GoogleChatView({ account }) {
                       <div key={msg.name || index} style={{ display: 'flex', flexDirection: 'column', alignItems: isSelf ? 'flex-end' : 'flex-start', marginTop: isSameSenderAsPrev ? -8 : 0 }}>
                         {!isSameSenderAsPrev && (
                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexDirection: isSelf ? 'row-reverse' : 'row' }}>
-                              {!isSelf && (
-                                <div style={{ 
-                                  width: 24, height: 24, borderRadius: '50%', 
-                                  backgroundColor: getAvatarColor(senderName), 
-                                  color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                                  fontSize: 12, fontWeight: 'bold' 
-                                }}>
-                                  {senderName.charAt(0).toUpperCase()}
-                                </div>
-                              )}
-                              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-2)' }}>{senderName}</span>
+                              <div style={{ 
+                                width: 24, height: 24, borderRadius: '50%', 
+                                backgroundColor: getAvatarColor(senderName), 
+                                color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                                fontSize: 12, fontWeight: 'bold' 
+                              }}>
+                                {senderName.charAt(0).toUpperCase()}
+                              </div>
+                              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-2)' }}>{isSelf ? 'You' : senderName}</span>
                               <span style={{ fontSize: 11, color: 'var(--text-3)' }}>{formatTime(msg.createTime)}</span>
                            </div>
                         )}

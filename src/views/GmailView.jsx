@@ -39,6 +39,28 @@ const LABEL_ICONS = {
   IMPORTANT: Tag,
 };
 
+function EmailBody({ message }) {
+  const body = gmailAPI.getBody(message);
+  
+  if (body.html) {
+    return (
+      <div style={{ backgroundColor: 'white', padding: 24, borderRadius: 8, border: '1px solid var(--border)', overflowX: 'auto', minHeight: 300 }}>
+        <iframe 
+          srcDoc={body.html}
+          style={{ width: '100%', height: '500px', border: 'none' }}
+          sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin"
+        />
+      </div>
+    );
+  }
+  
+  return (
+    <div style={{ backgroundColor: 'var(--surface)', padding: 24, borderRadius: 8, border: '1px solid var(--border)', color: 'var(--text)', whiteSpace: 'pre-wrap', fontFamily: 'monospace', overflowX: 'auto' }}>
+      {body.text || 'No content'}
+    </div>
+  );
+}
+
 export function GmailView({ account }) {
   const [token, setToken] = useState(null);
   const [labels, setLabels] = useState([]);
@@ -57,9 +79,9 @@ export function GmailView({ account }) {
 
   const loadLabels = useCallback(async (t) => {
     try {
-      const res = await gmailAPI.getLabels(t);
-      if (res && res.labels) {
-        setLabels(res.labels);
+      const labelsArr = await gmailAPI.getLabels(t);
+      if (Array.isArray(labelsArr)) {
+        setLabels(labelsArr);
       }
     } catch (e) {
       console.error('Failed to load labels:', e);
@@ -195,17 +217,16 @@ export function GmailView({ account }) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
                   <div>
                     <div style={{ fontWeight: 600, fontSize: 16 }}>{parseFrom(selectedMessage.from)}</div>
+                    <div style={{ color: 'var(--text-3)', fontSize: 13, marginTop: 2 }}>{selectedMessage.from}</div>
                     <div style={{ color: 'var(--text-2)', fontSize: 13, marginTop: 4 }}>To: {selectedMessage.to || 'me'}</div>
+                    {selectedMessage.cc && <div style={{ color: 'var(--text-3)', fontSize: 12, marginTop: 2 }}>Cc: {selectedMessage.cc}</div>}
                   </div>
-                  <div style={{ color: 'var(--text-2)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ color: 'var(--text-2)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                     <Clock size={14} />
                     {formatDate(selectedMessage.date)}
                   </div>
                 </div>
-                <div 
-                  style={{ backgroundColor: 'var(--surface)', padding: 24, borderRadius: 8, border: '1px solid var(--border)', color: 'var(--text)', overflowX: 'auto' }}
-                  dangerouslySetInnerHTML={{ __html: gmailAPI.getBody(selectedMessage._raw) || '<p>No content</p>' }}
-                />
+                <EmailBody message={selectedMessage._raw} />
               </div>
             </div>
           ) : (
