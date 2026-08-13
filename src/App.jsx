@@ -182,9 +182,23 @@ export default function App() {
   const deleteProject = async (id) => { await api.deleteRow('gpm_projects', id); const n = allProjects.filter(x => x.id!==id); setAllProjects(n); if(openProjectId===id)setOpenProjectId(null); runScheduler({ projects:n, employees, tasks:allTasks, modules, users }); showToast("project deleted"); };
   const markProjectDelivered = async (id) => { const p = allProjects.find(x=>x.id===id); if(!p)return; const updated = {...p, status:"delivered", deadline:today()}; await api.upsertRow('gpm_projects', updated); const n = allProjects.map(x => x.id===id?updated:x); setAllProjects(n); runScheduler({ projects:n, employees, tasks:allTasks, modules, users }); showToast("project delivered 🎉"); };
   
-  const createTask = async (t) => { await api.upsertRow('gpm_tasks', t); const n = [...allTasks, t]; setAllTasks(n); runScheduler({ projects:allProjects, employees, tasks:n, modules, users }); showToast(`task "${t.title}" added`); };
+  const createTask = async (t) => {
+    await api.upsertRow('gpm_tasks', t);
+    const n = [...allTasks, t];
+    setAllTasks(n);
+    runScheduler({ projects:allProjects, employees, tasks:n, modules, users });
+    showToast(`task "${t.title}" added`);
+
+    const proj = allProjects.find(p => p.id === t.projectId);
+    const assigneeAcc = accounts.find(a => a.id === t.assigneeId || a.username === t.assigneeId) || employees.find(e => e.id === t.assigneeId);
+    const assigneeEmail = assigneeAcc?.email || assigneeAcc?.notificationEmail;
+    if (assigneeEmail) {
+      mail.sendTaskAssignedNotification(assigneeEmail, t.title, proj?.name || "Project", t.deadline);
+    }
+  };
   const updateTask = async (t) => { await api.upsertRow('gpm_tasks', t); const n = allTasks.map(x => x.id===t.id?t:x); setAllTasks(n); runScheduler({ projects:allProjects, employees, tasks:n, modules, users }); };
   const deleteTask = async (id) => { await api.deleteRow('gpm_tasks', id); const n = allTasks.filter(x => x.id!==id); setAllTasks(n); runScheduler({ projects:allProjects, employees, tasks:n, modules, users }); };
+  
   const advanceTask = async (id) => {
     const t = allTasks.find(x => x.id === id); if(!t || t.status==="done") return;
     const next = NEXT_STATUS[t.status];
@@ -193,6 +207,14 @@ export default function App() {
     await api.upsertRow('gpm_tasks', updated);
     const n = allTasks.map(x => x.id===id ? updated : x);
     setAllTasks(n); runScheduler({ projects:allProjects, employees, tasks:n, modules, users });
+
+    if (next === "done") {
+      const proj = allProjects.find(p => p.id === t.projectId);
+      const clientEmails = proj ? (Array.isArray(proj.clientEmails) && proj.clientEmails.length > 0 ? proj.clientEmails : (proj.clientEmail ? [proj.clientEmail] : [])) : [];
+      if (clientEmails.length > 0) {
+        mail.sendTaskDoneNotification(clientEmails, t.clientTitle || t.title, proj?.name || "Project", t.clientDescription);
+      }
+    }
   };
   const updateTaskStatus = async (id, newStatus) => {
     const t = allTasks.find(x => x.id === id); if(!t || t.status === newStatus) return;
@@ -201,6 +223,14 @@ export default function App() {
     await api.upsertRow('gpm_tasks', updated);
     const n = allTasks.map(x => x.id===id ? updated : x);
     setAllTasks(n); runScheduler({ projects:allProjects, employees, tasks:n, modules, users });
+
+    if (newStatus === "done") {
+      const proj = allProjects.find(p => p.id === t.projectId);
+      const clientEmails = proj ? (Array.isArray(proj.clientEmails) && proj.clientEmails.length > 0 ? proj.clientEmails : (proj.clientEmail ? [proj.clientEmail] : [])) : [];
+      if (clientEmails.length > 0) {
+        mail.sendTaskDoneNotification(clientEmails, t.clientTitle || t.title, proj?.name || "Project", t.clientDescription);
+      }
+    }
   };
   
   const createModule = async (m) => { await api.upsertRow('gpm_modules', m); const n = [...modules, m]; setModules(n); runScheduler({ projects:allProjects, employees, tasks:allTasks, modules:n, users }); };

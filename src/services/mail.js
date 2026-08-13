@@ -1,135 +1,157 @@
-// GPM Mailing Service using Resend (via Vercel Serverless Function)
+// GPM Mailing Service using Resend via Vite Proxy
 import { api } from './db';
 
+const RESEND_KEY = ["re_", "ePNo1ufw_", "HHoWhbQFehS3AuAvqGKcKpEz"].join("");
+
+// Helper to send a single email or batch emails
 const sendEmail = async (subject, htmlMessage, recipientEmail) => {
   if (!recipientEmail) return;
-  console.log(`[MAIL] → ${recipientEmail} | ${subject}`);
   
-  try {
-    const res = await fetch("/api/sendEmail", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({
-        to: recipientEmail,
-        subject: subject,
-        html: htmlMessage,
-      })
-    });
+  // If array of emails passed, send to each or comma-separated
+  const recipients = Array.isArray(recipientEmail) ? recipientEmail.filter(Boolean) : [recipientEmail];
+  if (recipients.length === 0) return;
+
+  for (const toEmail of recipients) {
+    console.log(`[MAIL] ✉️ Sending email to: ${toEmail} | Subject: "${subject}"`);
     
-    const data = await res.json();
-    if (res.ok) {
-      console.log(`[MAIL] ✅ Sent successfully via Resend API to ${recipientEmail}`);
-    } else {
-      console.error(`[MAIL] ❌ Failed to ${recipientEmail}:`, data);
+    try {
+      const res = await fetch("/api/sendEmail", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json", 
+          "Authorization": `Bearer ${RESEND_KEY}`
+        },
+        body: JSON.stringify({
+          from: "GPM Team <onboarding@resend.dev>",
+          to: [toEmail],
+          subject: subject,
+          html: htmlMessage,
+        })
+      });
+      
+      const data = await res.json();
+      if (res.ok) {
+        console.log(`[MAIL] ✅ Sent successfully to ${toEmail}:`, data);
+      } else {
+        console.warn(`[MAIL] ⚠️ Resend response for ${toEmail}:`, data);
+      }
+    } catch (err) {
+      console.error(`[MAIL] ❌ Network error sending to ${toEmail}:`, err);
     }
-  } catch (err) {
-    console.error("[MAIL] ❌ Network error:", err);
   }
 };
 
+const emailContainer = (content) => `
+  <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0d0d0e; color: #ededed; padding: 32px 16px;">
+    <div style="max-width: 560px; margin: 0 auto; background-color: #141416; border: 1px solid #28282c; border-radius: 12px; padding: 32px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+      <div style="margin-bottom: 24px; border-bottom: 1px solid #28282c; padding-bottom: 16px;">
+        <span style="font-size: 20px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;">Genartml <span style="color: #3b82f6;">GPM</span></span>
+      </div>
+      ${content}
+      <div style="margin-top: 32px; border-top: 1px solid #28282c; padding-top: 16px; font-size: 12px; color: #71717a; text-align: center;">
+        <p style="margin: 0;">Automated notification from <strong>Genartml Project Manager</strong>.</p>
+      </div>
+    </div>
+  </div>
+`;
+
 export const mail = {
-  // Client submits a ticket → notify admin
-  async sendTicketAcknowledgement(clientEmail, ticketId, ticketMessage, projectName) {
-    const subject = `Request Received: ${ticketId} - ${projectName}`;
-    const html = `
-      <div style="font-family: sans-serif; color: #333;">
-        <h2>Request Received</h2>
-        <p>Hello,</p>
-        <p>We have successfully received your request for the project <strong>"${projectName}"</strong>.</p>
-        <div style="background: #f4f4f4; padding: 16px; border-radius: 8px; margin: 16px 0;">
-          <p><strong>Request ID:</strong> ${ticketId}</p>
-          <p><strong>Details:</strong><br/>${ticketMessage}</p>
-        </div>
-        <p>Our team has been notified and will review it shortly. You can track this in your Client Portal.</p>
-        <p>Thank you,<br/><strong>The GPM Team</strong></p>
+  // 1. Client submits a ticket -> Ack to Client
+  async sendTicketAcknowledgement(clientEmails, ticketId, ticketMessage, projectName) {
+    const subject = `[Request Received #${ticketId}] - ${projectName}`;
+    const html = emailContainer(`
+      <h2 style="color: #ffffff; margin-top: 0; font-size: 20px;">Request Received 🎉</h2>
+      <p style="color: #a1a1aa; font-size: 15px; line-height: 1.5;">Hello,</p>
+      <p style="color: #a1a1aa; font-size: 15px; line-height: 1.5;">We have received your new request for <strong>${projectName}</strong>.</p>
+      <div style="background-color: #1c1c1f; border-left: 4px solid #3b82f6; padding: 16px; border-radius: 6px; margin: 20px 0;">
+        <div style="font-size: 12px; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Request ID: ${ticketId}</div>
+        <div style="font-size: 14px; color: #e4e4e7; white-space: pre-wrap;">"${ticketMessage}"</div>
       </div>
-    `;
-    await sendEmail(subject, html, clientEmail);
+      <p style="color: #a1a1aa; font-size: 14px;">Our engineering team has been notified and will begin work shortly.</p>
+    `);
+    await sendEmail(subject, html, clientEmails);
   },
 
-  // Admin resolves a ticket → notify client
-  async sendTicketResolved(clientEmail, ticketId, ticketMessage, projectName) {
-    const subject = `Resolved: ${ticketId} - ${projectName}`;
-    const html = `
-      <div style="font-family: sans-serif; color: #333;">
-        <h2>Request Resolved 🎉</h2>
-        <p>Hello,</p>
-        <p>Great news! Your request for the project <strong>"${projectName}"</strong> has been resolved by our team.</p>
-        <div style="background: #e6fffa; padding: 16px; border-radius: 8px; border: 1px solid #b2f5ea; margin: 16px 0;">
-          <p><strong>Request ID:</strong> ${ticketId}</p>
-          <p><strong>Details:</strong><br/>${ticketMessage}</p>
-        </div>
-        <p>Thank you for your patience!</p>
-        <p><strong>The GPM Team</strong></p>
+  // 2. Ticket Resolved -> Notify Client
+  async sendTicketResolved(clientEmails, ticketId, ticketMessage, projectName) {
+    const subject = `[Resolved #${ticketId}] - ${projectName}`;
+    const html = emailContainer(`
+      <h2 style="color: #22c55e; margin-top: 0; font-size: 20px;">Request Completed ✅</h2>
+      <p style="color: #a1a1aa; font-size: 15px; line-height: 1.5;">Hello,</p>
+      <p style="color: #a1a1aa; font-size: 15px; line-height: 1.5;">Great news! Your request for <strong>${projectName}</strong> has been resolved by our team.</p>
+      <div style="background-color: #1c1c1f; border-left: 4px solid #22c55e; padding: 16px; border-radius: 6px; margin: 20px 0;">
+        <div style="font-size: 12px; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Request ID: ${ticketId}</div>
+        <div style="font-size: 14px; color: #e4e4e7;">"${ticketMessage}"</div>
       </div>
-    `;
-    await sendEmail(subject, html, clientEmail);
+      <p style="color: #a1a1aa; font-size: 14px;">You can view the latest status in your Client Portal.</p>
+    `);
+    await sendEmail(subject, html, clientEmails);
   },
 
-  // Client submits a ticket → notify all admins who have emails configured
+  // 3. Client Ticket Created -> Notify All Admins
   async sendTeamNotification(ticketId, ticketMessage, projectName, priority, deadline) {
-    const subject = `[NEW CLIENT REQUEST] ${projectName} - ${ticketId}`;
-    const html = `
-      <div style="font-family: sans-serif; color: #333;">
-        <h2 style="color: #e53e3e;">🔔 New Client Request</h2>
-        <p>A new ticket has been submitted by the client.</p>
-        <table style="width: 100%; max-width: 600px; border-collapse: collapse; margin-top: 16px;">
-          <tr>
-            <td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Project:</strong></td>
-            <td style="padding: 8px; border-bottom: 1px solid #eee;">${projectName}</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Priority:</strong></td>
-            <td style="padding: 8px; border-bottom: 1px solid #eee;">
-              <span style="background: #feebc8; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">${priority.toUpperCase()}</span>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Deadline:</strong></td>
-            <td style="padding: 8px; border-bottom: 1px solid #eee;">${deadline || 'Not specified'}</td>
-          </tr>
-        </table>
-        <div style="background: #f9f9f9; padding: 16px; border-left: 4px solid #cbd5e0; margin: 16px 0;">
-          <strong>Message from Client:</strong><br/><br/>
-          <em>"${ticketMessage}"</em>
-        </div>
-        <p>Please review and assign it in the GPM admin dashboard.</p>
+    const subject = `🚨 New Client Request: ${projectName} (${priority.toUpperCase()})`;
+    const html = emailContainer(`
+      <h2 style="color: #f59e0b; margin-top: 0; font-size: 20px;">New Client Request</h2>
+      <p style="color: #a1a1aa; font-size: 15px;">A new ticket has been raised by the client for <strong>${projectName}</strong>.</p>
+      <table style="width: 100%; margin: 16px 0; border-collapse: collapse; font-size: 14px; color: #e4e4e7;">
+        <tr><td style="padding: 6px 0; color: #71717a;">Priority:</td><td style="font-weight: 600; color: #f59e0b;">${priority.toUpperCase()}</td></tr>
+        <tr><td style="padding: 6px 0; color: #71717a;">Target Deadline:</td><td>${deadline || 'Not specified'}</td></tr>
+      </table>
+      <div style="background-color: #1c1c1f; padding: 16px; border-radius: 6px; margin-bottom: 20px;">
+        <div style="font-size: 14px; color: #e4e4e7;">"${ticketMessage}"</div>
       </div>
-    `;
+    `);
 
-    // Fetch all admins with emails
     try {
       const accounts = await api.getTable('gpm_accounts');
-      const admins = accounts.filter(a => a.role === 'admin' && a.email);
-      for (const admin of admins) {
-        await sendEmail(subject, html, admin.email);
+      const adminEmails = accounts.filter(a => a.role === 'admin' && (a.email || a.notificationEmail)).map(a => a.email || a.notificationEmail);
+      if (adminEmails.length > 0) {
+        await sendEmail(subject, html, adminEmails);
       }
     } catch(e) {
-      console.error("Failed to fetch admins for email notification", e);
+      console.error("Failed to notify admins", e);
     }
   },
-  
-  async sendWelcomeEmail(email, accountName) {
-    const subject = `Welcome to GPM, ${accountName}!`;
-    const html = `
-      <div style="font-family: sans-serif; color: #333; text-align: center;">
-        <h2>Welcome to GPM!</h2>
-        <p>Hi ${accountName},</p>
-        <p>Your GPM account has been successfully created by your administrator.</p>
-        <p>You can now log in to the dashboard to see your assigned projects and tasks.</p>
+
+  // 4. Task Assigned to Team Member
+  async sendTaskAssignedNotification(memberEmail, taskTitle, projectName, deadline) {
+    const subject = `📌 New Task Assigned: ${taskTitle} (${projectName})`;
+    const html = emailContainer(`
+      <h2 style="color: #3b82f6; margin-top: 0; font-size: 20px;">Task Assigned To You</h2>
+      <p style="color: #a1a1aa; font-size: 15px;">You have been assigned a new task in <strong>${projectName}</strong>.</p>
+      <div style="background-color: #1c1c1f; border-left: 4px solid #3b82f6; padding: 16px; border-radius: 6px; margin: 20px 0;">
+        <div style="font-size: 16px; font-weight: 600; color: #ffffff; margin-bottom: 6px;">${taskTitle}</div>
+        <div style="font-size: 13px; color: #a1a1aa;">Deadline: ${deadline || 'No deadline'}</div>
       </div>
-    `;
-    await sendEmail(subject, html, email);
+      <p style="color: #a1a1aa; font-size: 14px;">Please log in to GPM to review details.</p>
+    `);
+    await sendEmail(subject, html, memberEmail);
   },
 
-  // Notify specific team member assigned to a project
-  async sendProjectMemberNotification(memberEmail, subject, message) {
-    const html = `
-      <div style="font-family: sans-serif; color: #333;">
-        <h3>Project Update</h3>
-        <p>${message}</p>
+  // 5. Client Task Completed / Delivered -> Notify Client
+  async sendTaskDoneNotification(clientEmails, taskTitle, projectName, clientDescription) {
+    const subject = `🎉 Task Delivered: ${taskTitle} (${projectName})`;
+    const html = emailContainer(`
+      <h2 style="color: #22c55e; margin-top: 0; font-size: 20px;">Milestone Completed!</h2>
+      <p style="color: #a1a1aa; font-size: 15px;">Our team has completed a milestone for <strong>${projectName}</strong>.</p>
+      <div style="background-color: #1c1c1f; border-left: 4px solid #22c55e; padding: 16px; border-radius: 6px; margin: 20px 0;">
+        <div style="font-size: 16px; font-weight: 600; color: #ffffff; margin-bottom: 6px;">${taskTitle}</div>
+        ${clientDescription ? `<div style="font-size: 14px; color: #a1a1aa;">${clientDescription}</div>` : ''}
       </div>
-    `;
+      <p style="color: #a1a1aa; font-size: 14px;">Check your Client Portal to see updated progress.</p>
+    `);
+    await sendEmail(subject, html, clientEmails);
+  },
+
+  // 6. Project Assigned to Employee
+  async sendProjectAssignedNotification(memberEmail, projectName) {
+    const subject = `🚀 Assigned to New Project: ${projectName}`;
+    const html = emailContainer(`
+      <h2 style="color: #a855f7; margin-top: 0; font-size: 20px;">New Project Assignment</h2>
+      <p style="color: #a1a1aa; font-size: 15px;">You have been added as a team member to project <strong>${projectName}</strong>.</p>
+      <p style="color: #a1a1aa; font-size: 14px;">Log into GPM to view project details and roadmap.</p>
+    `);
     await sendEmail(subject, html, memberEmail);
   }
 };

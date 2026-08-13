@@ -6,7 +6,6 @@ import { taskStatusMeta } from '../utils/constants';
 import { mail } from '../services/mail';
 
 export function ClientLogin({ onLogin }) {
-  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [projectId, setProjectId] = useState("");
   const [password, setPassword] = useState("");
@@ -16,32 +15,11 @@ export function ClientLogin({ onLogin }) {
   const submit = async (e) => {
     e.preventDefault(); setError(""); setBusy(true);
     try {
-      if (!username.trim() || !email.trim() || !projectId.trim() || !password.trim()) {
+      if (!email.trim() || !projectId.trim() || !password.trim()) {
         throw new Error("All fields are required.");
       }
 
-      // 1. Authenticate with Supabase Auth (Email + Password)
-      let { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password: password.trim()
-      });
-
-      // If invalid credentials, it might be their first time (account doesn't exist yet)
-      if (authError && authError.message.toLowerCase().includes('invalid login credentials')) {
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email: email.trim(),
-          password: password.trim()
-        });
-        if (signUpError) throw new Error("Invalid credentials or failed to register.");
-        
-        // Wait for session to establish
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (!sessionData.session) throw new Error("Could not establish session.");
-      } else if (authError) {
-        throw authError;
-      }
-
-      // 2. Fetch the Project (RLS guarantees they can only fetch it if client_email matches their auth.email())
+      // 1. Fetch project by ID
       const { data: proj, error: projError } = await supabase
         .from('gpm_projects')
         .select('*')
@@ -49,8 +27,21 @@ export function ClientLogin({ onLogin }) {
         .single();
         
       if (projError || !proj) {
-        await supabase.auth.signOut();
-        throw new Error("Project not found, or your email does not have access to this project.");
+        throw new Error("Project not found. Please verify your Project ID.");
+      }
+
+      // 2. Check Client Password (if project has one configured)
+      if (proj.client_password && proj.client_password !== password.trim()) {
+        throw new Error("Invalid password for this project portal.");
+      }
+
+      // 3. Append email to client_emails list if not already included
+      const currentEmails = Array.isArray(proj.client_emails) ? proj.client_emails : (proj.client_email ? [proj.client_email] : []);
+      const userEmail = email.trim().toLowerCase();
+      if (!currentEmails.includes(userEmail)) {
+        const updatedEmails = [...currentEmails, userEmail];
+        await api.upsertRow('gpm_projects', { id: proj.id, clientEmails: updatedEmails });
+        proj.client_emails = updatedEmails;
       }
 
       // Convert snake_case to camelCase
@@ -59,16 +50,6 @@ export function ClientLogin({ onLogin }) {
         acc[toCamel(key)] = proj[key];
         return acc;
       }, {});
-
-      // 3. Verify Username Lock
-      if (!mappedProj.clientUsername) {
-        // First time accessing! Lock the username in.
-        mappedProj.clientUsername = username.trim();
-        await api.upsertRow('gpm_projects', mappedProj);
-      } else if (mappedProj.clientUsername.toLowerCase() !== username.trim().toLowerCase()) {
-        await supabase.auth.signOut();
-        throw new Error("Incorrect username for this project portal.");
-      }
 
       // 4. Success
       onLogin(mappedProj);
@@ -86,14 +67,17 @@ export function ClientLogin({ onLogin }) {
           <img src="/genartml-logo.png" alt="Genartml" style={{ width: 240, height: 240, objectFit: "contain" }} />
         </div>
         <form onSubmit={submit} style={{ display:"flex", flexDirection:"column", gap:12, background:"#141415", padding:24, borderRadius:12, border:"1px solid #2A2A2E" }}>
-          <h2 className="font-display" style={{ fontSize:18, fontWeight:500, color:"#fff", margin:0, marginBottom:8 }}>Client Portal Login</h2>
-          <input type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="Username" style={{ width:"100%", boxSizing:"border-box", background:"#1E1E22", border:"1px solid #333", color:"#fff" }} required />
-          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email Address" style={{ width:"100%", boxSizing:"border-box", background:"#1E1E22", border:"1px solid #333", color:"#fff" }} required />
-          <input type="text" value={projectId} onChange={e => setProjectId(e.target.value)} placeholder="Project ID" style={{ width:"100%", boxSizing:"border-box", background:"#1E1E22", border:"1px solid #333", color:"#fff" }} required />
-          <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" style={{ width:"100%", boxSizing:"border-box", background:"#1E1E22", border:"1px solid #333", color:"#fff" }} required />
+          <h2 className="font-display" style={{ fontSize:18, fontWeight:500, color:"#fff", margin:0, marginBottom:4 }}>Client Portal Access</h2>
+          <p style={{ fontSize:12, color:"#888", margin:0, marginBottom:12 }}>Enter your project details & notification email to log in.</p>
+          
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Your Email Address" style={{ width:"100%", boxSizing:"border-box", background:"#1E1E22", border:"1px solid #333", color:"#fff", padding:"10px", borderRadius:6 }} required />
+          <input type="text" value={projectId} onChange={e => setProjectId(e.target.value)} placeholder="Project ID" style={{ width:"100%", boxSizing:"border-box", background:"#1E1E22", border:"1px solid #333", color:"#fff", padding:"10px", borderRadius:6 }} required />
+          <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Project Password" style={{ width:"100%", boxSizing:"border-box", background:"#1E1E22", border:"1px solid #333", color:"#fff", padding:"10px", borderRadius:6 }} required />
+          
           {error && <div style={{ fontSize:12, color:"#F87171", padding:"8px 12px", background:"rgba(248,113,113,.1)", borderRadius:6 }}>{error}</div>}
-          <button type="submit" disabled={busy} className="btn" style={{ width:"100%", justifyContent:"center", background:"#fff", color:"#000", fontWeight:500, marginTop:8 }}>
-            {busy ? "Authenticating..." : "Access Project"}
+          
+          <button type="submit" disabled={busy} className="btn" style={{ width:"100%", justifyContent:"center", background:"#fff", color:"#000", fontWeight:500, marginTop:8, padding:"10px", borderRadius:6, border:"none", cursor:"pointer" }}>
+            {busy ? "Authenticating..." : "Access Project Portal"}
           </button>
         </form>
         <div style={{ marginTop:16, textAlign:"center" }}>
@@ -210,8 +194,9 @@ export function ClientPortal({ project, onLogout }) {
         const tk = { id: tkId, projectId: project.id, message: ticketDraft.message.trim(), priority: ticketDraft.priority, deadline: ticketDraft.deadline || null, attachments: uploadedAttachments, status: 'open', isEdited: false, createdAt: new Date().toISOString() };
         await api.upsertRow('gpm_tickets', tk);
         setTickets([...tickets, tk]);
-        if (project.clientEmail) {
-          mail.sendTicketAcknowledgement(project.clientEmail, tkId, tk.message, project.name);
+        const targetEmails = Array.isArray(project.clientEmails) && project.clientEmails.length > 0 ? project.clientEmails : (project.clientEmail ? [project.clientEmail] : []);
+        if (targetEmails.length > 0) {
+          mail.sendTicketAcknowledgement(targetEmails, tkId, tk.message, project.name);
         }
         mail.sendTeamNotification(tkId, tk.message, project.name, tk.priority, tk.deadline);
       }

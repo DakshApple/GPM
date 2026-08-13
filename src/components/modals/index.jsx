@@ -27,7 +27,20 @@ export function ProjectEditor({ draft, setDraft, employees, users }) {
         <input type="checkbox" checked={draft.isOngoing||false} onChange={e => set("isOngoing",e.target.checked)} id="cb_ongoing" />
         <label htmlFor="cb_ongoing" style={{ fontSize:13, color:"var(--text-2)" }}>Continuous Product (No Deadline)</label>
       </div>
-      <div><label className="fl" style={{ marginTop:12 }}>client portal password (optional)</label><input type="text" value={draft.portalPassword||""} onChange={e => set("portalPassword",e.target.value)} placeholder="give this to client to login" style={{ width:"100%", marginTop:4, boxSizing:"border-box" }} /></div>
+      <div>
+        <label className="fl" style={{ marginTop:12 }}>client portal password</label>
+        <input type="text" value={draft.clientPassword || draft.portalPassword || ""} onChange={e => { set("clientPassword", e.target.value); set("portalPassword", e.target.value); }} placeholder="e.g. client123 (Clients use this password to access portal)" style={{ width:"100%", marginTop:4, boxSizing:"border-box" }} />
+      </div>
+      {Array.isArray(draft.clientEmails) && draft.clientEmails.length > 0 && (
+        <div style={{ marginTop:4 }}>
+          <label className="fl">registered client emails ({draft.clientEmails.length})</label>
+          <div style={{ marginTop:4, display:"flex", flexWrap:"wrap", gap:6 }}>
+            {draft.clientEmails.map((em, i) => (
+              <span key={i} style={{ fontSize:11, padding:"2px 8px", borderRadius:4, background:"var(--surface-2)", border:"1px solid var(--border)", color:"var(--text-2)" }}>{em}</span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12 }}>
         <div><label className="fl">est. days</label><input type="number" min={1} value={draft.estimatedDays} onChange={e => set("estimatedDays",parseInt(e.target.value)||1)} style={{ width:"100%", marginTop:4, boxSizing:"border-box" }} /></div>
