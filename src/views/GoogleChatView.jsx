@@ -92,7 +92,9 @@ export function GoogleChatView({ account }) {
     if (!token || !spaceName) return;
     try {
       const response = await chatAPI.getMembers(token, spaceName);
-      if (response && response.memberships) {
+      if (response && Array.isArray(response)) {
+        setMembers(response);
+      } else if (response && response.memberships) {
         setMembers(response.memberships);
       } else {
         setMembers([]);
