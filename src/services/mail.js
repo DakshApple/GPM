@@ -49,7 +49,7 @@ const emailContainer = (content) => `
   <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0d0d0e; color: #ededed; padding: 32px 16px;">
     <div style="max-width: 560px; margin: 0 auto; background-color: #141416; border: 1px solid #28282c; border-radius: 12px; padding: 32px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
       <div style="margin-bottom: 24px; border-bottom: 1px solid #28282c; padding-bottom: 16px;">
-        <span style="font-size: 20px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;">Genartml <span style="color: #3b82f6;">GPM</span></span>
+        <img src="https://updates.genartml.online/logo-dark.png" alt="Genartml" style="height: 32px; width: auto; object-fit: contain; display: block;" />
       </div>
       ${content}
       <div style="margin-top: 32px; border-top: 1px solid #28282c; padding-top: 16px; font-size: 12px; color: #71717a; text-align: center;">
