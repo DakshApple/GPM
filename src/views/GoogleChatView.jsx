@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Topbar } from '../components/layout';
 import { getGoogleToken, chatAPI } from '../services/google';
-import { MessageSquare, Send, Users, Hash, RefreshCw, Search, Smile, Paperclip, ChevronLeft, User } from 'lucide-react';
+import { MessageSquare, Send, Users, Hash, RefreshCw, Search, Smile, Plus, ChevronLeft, User } from 'lucide-react';
 
 export function GoogleChatView({ account }) {
   const [token, setToken] = useState(null);
@@ -404,7 +404,7 @@ export function GoogleChatView({ account }) {
                   borderRadius: 24, padding: '8px 16px', gap: 12,
                   border: '1px solid var(--border)'
                 }}>
-                  <button className="btn btn-ghost" style={{ padding: 4, color: 'var(--text-3)' }}><Paperclip size={20} /></button>
+                  <button className="btn btn-ghost" style={{ padding: 4, color: 'var(--text-3)' }}><Plus size={20} /></button>
                   <textarea
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
