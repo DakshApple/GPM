@@ -14,6 +14,10 @@ import { TasksView } from './views/TasksView';
 import { TeamView, SuggestionsView } from './views/index';
 import { TicketsView } from './views/TicketsView';
 import { UserManagement } from './views/UserManagement';
+import { IntegrationsView } from './views/IntegrationsView';
+import { GoogleDriveView } from './views/GoogleDriveView';
+import { GmailView } from './views/GmailView';
+import { GoogleChatView } from './views/GoogleChatView';
 import { store } from './services/storage';
 import { suggestTaskBreakdown } from './services/heuristics';
 import { mail } from './services/mail';
@@ -316,6 +320,10 @@ export default function App() {
       {view === "ai" && hasFeature("ai") && <SuggestionsView suggestions={suggestions} applySuggestion={applySuggestion} dismissSuggestion={dismissSuggestion} />}
       {view === "tickets" && hasFeature("tickets") && <TicketsView tickets={tickets} projects={projects} onResolve={resolveTicket} onConvertToTask={(tk) => { setTaskModalInitial({ projectId: tk.projectId, title: tk.message, priority: tk.priority, deadline: tk.deadline, clientTitle: tk.message, isClientVisible: true }); }} />}
       {view === "manage_users" && isAdmin && <UserManagement accounts={accounts} projects={allProjects} onCreateAccount={createAccount} onUpdateAccount={updateAccount} onDeleteAccount={deleteAccount} />}
+      {view === "integrations" && <IntegrationsView account={account} />}
+      {view === "drive" && <GoogleDriveView account={account} />}
+      {view === "gmail" && <GmailView account={account} />}
+      {view === "gchat" && <GoogleChatView account={account} />}
 
       {openProjectId && <ProjectDetail project={projects.find(p=>p.id===openProjectId)} projects={projects} employees={employees} users={users} updates={updates} tasks={tasks} modules={modules} deliverables={deliverables} onClose={()=>setOpenProjectId(null)} onSave={updateProject} onDelete={deleteProject} onAddUpdate={addUpdate} onAddDeliverable={addDeliverable} onDeleteDeliverable={deleteDeliverable} onMarkDelivered={markProjectDelivered} onCreateTask={createTask} onEditTask={updateTask} onAdvanceTask={advanceTask} onDeleteTask={deleteTask} onCreateModule={createModule} onUpdateModule={updateModuleObj} onDeleteModule={deleteModule} />}
 

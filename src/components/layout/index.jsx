@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, Command, LayoutDashboard, Calendar, Layers, FolderKanban, ListTodo, Users, Sparkles, LogOut, MessageSquare, UserCog, Key } from 'lucide-react';
+import { Search, Command, LayoutDashboard, Calendar, Layers, FolderKanban, ListTodo, Users, Sparkles, LogOut, MessageSquare, UserCog, Key, HardDrive, Mail, MessagesSquare, Plug } from 'lucide-react';
+import { isGoogleConnected } from '../../services/google';
 
 export function Sidebar({ view, setView, account, counts, onLogout, onOpenPalette, onChangePassword }) {
+  const googleConnected = isGoogleConnected(account.id);
+
   const allItems = [
     { id:"dashboard", label:"dashboard",      icon: LayoutDashboard, feature:"dashboard" },
     { id:"calendar",  label:"calendar",       icon: Calendar, feature:"calendar" },
@@ -23,6 +26,16 @@ export function Sidebar({ view, setView, account, counts, onLogout, onOpenPalett
     items.push({ id:"manage_users", label:"manage users", icon: UserCog, feature:"manage_users" });
   }
 
+  // Google Workspace items
+  const googleItems = [
+    { id:"integrations", label:"integrations", icon: Plug },
+  ];
+  if (googleConnected) {
+    googleItems.push({ id:"drive", label:"google drive", icon: HardDrive });
+    googleItems.push({ id:"gmail", label:"gmail", icon: Mail });
+    googleItems.push({ id:"gchat", label:"google chat", icon: MessagesSquare });
+  }
+
   return (
     <aside style={{ width:220, flexShrink:0, display:"flex", flexDirection:"column", borderRight:"1px solid var(--border)", background:"var(--surface)" }}>
       <div style={{ padding:16, display:"flex", alignItems:"center", justifyContent:"center", borderBottom:"1px solid var(--border)", height: 60, overflow:"hidden" }}>
@@ -33,7 +46,7 @@ export function Sidebar({ view, setView, account, counts, onLogout, onOpenPalett
         <span style={{ flex:1, textAlign:"left" }}>quick add / jump...</span>
         <span className="kbd">⌘K</span>
       </button>
-      <nav style={{ flex:1, padding:8, marginTop:8 }}>
+      <nav style={{ flex:1, padding:8, marginTop:8, overflowY:"auto" }}>
         {items.map(item => {
           const Icon = item.icon;
           const active = view === item.id;
@@ -43,6 +56,23 @@ export function Sidebar({ view, setView, account, counts, onLogout, onOpenPalett
               <Icon style={{ width:15, height:15, flexShrink:0, color:active?"var(--amber)":"currentColor" }} />
               <span style={{ flex:1 }}>{item.label}</span>
               {item.count > 0 && <span className="font-mono" style={{ fontSize:10, padding:"2px 6px", borderRadius:4, background:item.accent?"rgba(74,158,255,.15)":"var(--surface-3)", color:item.accent?"var(--blue)":"var(--text-2)" }}>{item.count}</span>}
+            </button>
+          );
+        })}
+
+        {/* Google Workspace section */}
+        <div style={{ margin:"12px 0 4px", padding:"0 10px" }}>
+          <div style={{ height:1, background:"var(--border)", marginBottom:10 }} />
+          <span className="fl" style={{ fontSize:9, letterSpacing:"0.08em", textTransform:"uppercase", color:"var(--text-3)" }}>google workspace</span>
+        </div>
+        {googleItems.map(item => {
+          const Icon = item.icon;
+          const active = view === item.id;
+          return (
+            <button key={item.id} onClick={() => setView(item.id)}
+              style={{ width:"100%", display:"flex", alignItems:"center", gap:10, padding:"8px 10px", borderRadius:6, fontSize:12, background:active?"var(--surface-2)":"transparent", color:active?"var(--text)":"var(--text-2)", fontWeight:active?500:400, border:"none", cursor:"pointer", marginBottom:2, textAlign:"left" }}>
+              <Icon style={{ width:15, height:15, flexShrink:0, color:active?"var(--amber)":"currentColor" }} />
+              <span style={{ flex:1 }}>{item.label}</span>
             </button>
           );
         })}
