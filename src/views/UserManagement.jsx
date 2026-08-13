@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, Edit3, Shield, User, Check, AlertTriangle } from 'lucide-react';
 import { uid } from '../utils/date';
+import { secondarySupabase } from '../services/db';
 
 const ALL_FEATURES = [
   { id: 'dashboard', label: 'Dashboard Overview', deps: [] },
@@ -30,6 +31,8 @@ export function UserManagement({ accounts = [], projects = [], onCreateAccount, 
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState(INITIAL_FORM);
   const [featureWarnings, setFeatureWarnings] = useState({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
   const handleEdit = (account) => {
     setFormData({ ...account, password: '' });
@@ -49,16 +52,30 @@ export function UserManagement({ accounts = [], projects = [], onCreateAccount, 
     setFeatureWarnings({});
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.username || !formData.displayName || (!formData.id && formData.password.length < 6)) return;
 
-    if (formData.id) {
-      onUpdateAccount(formData);
-    } else {
-      onCreateAccount({ ...formData, id: 'acc-' + uid() });
+    setBusy(true); setError("");
+    try {
+      if (formData.id) {
+        onUpdateAccount(formData);
+      } else {
+        // Create in Supabase Auth first
+        const { data: authData, error: authError } = await secondarySupabase.auth.signUp({
+          email: formData.email.trim(),
+          password: formData.password
+        });
+        if (authError) throw authError;
+        if (!authData.user) throw new Error("Could not create user in auth system.");
+
+        onCreateAccount({ ...formData, id: 'acc-' + uid(), supabaseUid: authData.user.id });
+      }
+      setIsEditing(false);
+      setFormData(INITIAL_FORM);
+    } catch(err) {
+      setError(err.message || "An error occurred while saving.");
     }
-    setIsEditing(false);
-    setFormData(INITIAL_FORM);
+    setBusy(false);
   };
 
   const handleToggleFeature = (featureId) => {
@@ -295,14 +312,16 @@ export function UserManagement({ accounts = [], projects = [], onCreateAccount, 
             </div>
           </div>
 
+          {error && <div style={{ background: 'rgba(248,113,113,0.1)', color: 'var(--red)', padding: '12px', borderRadius: '6px', fontSize: '13px', marginTop: '24px' }}>{error}</div>}
+
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '32px', paddingTop: '24px', borderTop: '1px solid var(--border)' }}>
-            <button className="btn btn-ghost" onClick={handleCancel}>Cancel</button>
+            <button className="btn btn-ghost" onClick={handleCancel} disabled={busy}>Cancel</button>
             <button 
               className="btn btn-primary" 
               onClick={handleSave}
-              disabled={!formData.username || !formData.displayName || (!formData.id && formData.password.length < 6)}
+              disabled={busy || !formData.username || !formData.displayName || (!formData.id && formData.password.length < 6)}
             >
-              {formData.id ? 'Save Changes' : 'Create Account'}
+              {busy ? "Saving..." : (formData.id ? 'Save Changes' : 'Create Account')}
             </button>
           </div>
         </div>

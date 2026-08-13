@@ -5,6 +5,15 @@ const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "sb_publishable_H
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// Secondary client for admin provisioning (doesn't overwrite current session)
+export const secondarySupabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false,
+  }
+});
+
 const toSnake = (str) => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
 const toCamel = (str) => str.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
 
