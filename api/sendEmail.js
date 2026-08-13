@@ -12,13 +12,13 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
-  const RESEND_API_KEY = process.env.RESEND_API_KEY;
+  const RESEND_API_KEY = process.env.RESEND_API_KEY || (req.headers.authorization ? req.headers.authorization.split(' ')[1] : null);
 
   if (!RESEND_API_KEY) {
-    return res.status(500).json({ error: 'Server misconfiguration: missing RESEND_API_KEY' });
+    return res.status(500).json({ error: 'Server misconfiguration: missing API key' });
   }
 
-  const { to, subject, html } = req.body;
+  const { from, to, subject, html } = req.body;
 
   if (!to || !subject || !html) {
     return res.status(400).json({ error: 'Missing required fields: to, subject, html' });
@@ -32,9 +32,7 @@ export default async function handler(req, res) {
         'Authorization': `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        // For testing, Resend allows sending from onboarding@resend.dev to your verified email
-        // Once you add a real domain in Resend (e.g. updates@yourdomain.com), change this!
-        from: 'GPM Notifier <onboarding@resend.dev>',
+        from: from || 'GPM Notifications <notifications@updates.genartml.online>',
         to: to,
         subject: subject,
         html: html,
