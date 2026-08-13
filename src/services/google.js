@@ -350,10 +350,6 @@ export const chatAPI = {
   async getSpace(token, spaceName) {
     return fetchAPI(token, `https://chat.googleapis.com/v1/${spaceName}`);
   },
-
-  async getUser(token, userName) {
-    return fetchAPI(token, `https://chat.googleapis.com/v1/${userName}`);
-  },
 };
 
 // ─── Utility: File type helpers ──────────────────────────────────────

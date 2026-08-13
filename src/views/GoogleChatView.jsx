@@ -150,14 +150,7 @@ export function GoogleChatView({ account }) {
             // Optimistically set to prevent refetching
             setUserCache(prev => ({ ...prev, [id]: { name: id } }));
             
-            // Try fetching from Chat API
             let resolvedName = null;
-            try {
-              const userResponse = await chatAPI.getUser(token, id);
-              if (userResponse?.displayName) resolvedName = userResponse.displayName;
-            } catch (err) {
-              console.warn('Chat API getUser failed for', id, err);
-            }
             
             // Fallback to People API
             if (!resolvedName) {
