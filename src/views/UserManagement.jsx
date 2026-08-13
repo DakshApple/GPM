@@ -20,7 +20,7 @@ const INITIAL_FORM = {
   id: '',
   username: '',
   displayName: '',
-  email: '',
+  email: '', // Now optional, mapped to notification_email
   password: '',
   role: 'member',
   assignedProjectIds: [],
@@ -60,15 +60,17 @@ export function UserManagement({ accounts = [], projects = [], onCreateAccount, 
       if (formData.id) {
         onUpdateAccount(formData);
       } else {
-        // Create in Supabase Auth first
+        const authEmail = `${formData.username.trim().toLowerCase()}@gpm.local`;
+
+        // Create in Supabase Auth first with synthetic email
         const { data: authData, error: authError } = await secondarySupabase.auth.signUp({
-          email: formData.email.trim(),
+          email: authEmail,
           password: formData.password
         });
         if (authError) throw authError;
         if (!authData.user) throw new Error("Could not create user in auth system.");
 
-        onCreateAccount({ ...formData, id: 'acc-' + uid(), supabaseUid: authData.user.id });
+        onCreateAccount({ ...formData, id: 'acc-' + uid(), supabaseUid: authData.user.id, notificationEmail: formData.email.trim() });
       }
       setIsEditing(false);
       setFormData(INITIAL_FORM);
@@ -184,7 +186,7 @@ export function UserManagement({ accounts = [], projects = [], onCreateAccount, 
               />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <label className="fl" style={{ fontSize: '13px', color: 'var(--text-2)' }}>Email</label>
+              <label className="fl" style={{ fontSize: '13px', color: 'var(--text-2)' }}>Notification Email (Optional)</label>
               <input
                 type="email"
                 value={formData.email}

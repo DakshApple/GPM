@@ -6,22 +6,73 @@ import { taskStatusMeta } from '../utils/constants';
 import { mail } from '../services/mail';
 
 export function ClientLogin({ onLogin }) {
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
+  const [projectId, setProjectId] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
   const submit = async (e) => {
-    e.preventDefault(); setError(""); setMessage(""); setBusy(true);
+    e.preventDefault(); setError(""); setBusy(true);
     try {
-      const { error } = await supabase.auth.signInWithOtp({
+      if (!username.trim() || !email.trim() || !projectId.trim() || !password.trim()) {
+        throw new Error("All fields are required.");
+      }
+
+      // 1. Authenticate with Supabase Auth (Email + Password)
+      let { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: email.trim(),
-        options: {
-          emailRedirectTo: window.location.origin + '#client'
-        }
+        password: password.trim()
       });
-      if (error) throw error;
-      setMessage("Magic link sent! Please check your email to log in.");
+
+      // If invalid credentials, it might be their first time (account doesn't exist yet)
+      if (authError && authError.message.toLowerCase().includes('invalid login credentials')) {
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: email.trim(),
+          password: password.trim()
+        });
+        if (signUpError) throw new Error("Invalid credentials or failed to register.");
+        
+        // Wait for session to establish
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData.session) throw new Error("Could not establish session.");
+      } else if (authError) {
+        throw authError;
+      }
+
+      // 2. Fetch the Project (RLS guarantees they can only fetch it if client_email matches their auth.email())
+      const { data: proj, error: projError } = await supabase
+        .from('gpm_projects')
+        .select('*')
+        .eq('id', projectId.trim())
+        .single();
+        
+      if (projError || !proj) {
+        await supabase.auth.signOut();
+        throw new Error("Project not found, or your email does not have access to this project.");
+      }
+
+      // Convert snake_case to camelCase
+      const toCamel = (str) => str.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+      const mappedProj = Object.keys(proj).reduce((acc, key) => {
+        acc[toCamel(key)] = proj[key];
+        return acc;
+      }, {});
+
+      // 3. Verify Username Lock
+      if (!mappedProj.clientUsername) {
+        // First time accessing! Lock the username in.
+        mappedProj.clientUsername = username.trim();
+        await api.upsertRow('gpm_projects', mappedProj);
+      } else if (mappedProj.clientUsername.toLowerCase() !== username.trim().toLowerCase()) {
+        await supabase.auth.signOut();
+        throw new Error("Incorrect username for this project portal.");
+      }
+
+      // 4. Success
+      onLogin(mappedProj);
+
     } catch(err) {
       setError(err.message || "Connection error.");
     }
@@ -35,12 +86,14 @@ export function ClientLogin({ onLogin }) {
           <img src="/genartml-logo.png" alt="Genartml" style={{ width: 240, height: 240, objectFit: "contain" }} />
         </div>
         <form onSubmit={submit} style={{ display:"flex", flexDirection:"column", gap:12, background:"#141415", padding:24, borderRadius:12, border:"1px solid #2A2A2E" }}>
-          <h2 className="font-display" style={{ fontSize:18, fontWeight:500, color:"#fff", margin:0, marginBottom:8 }}>Welcome Back</h2>
+          <h2 className="font-display" style={{ fontSize:18, fontWeight:500, color:"#fff", margin:0, marginBottom:8 }}>Client Portal Login</h2>
+          <input type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="Username" style={{ width:"100%", boxSizing:"border-box", background:"#1E1E22", border:"1px solid #333", color:"#fff" }} required />
           <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email Address" style={{ width:"100%", boxSizing:"border-box", background:"#1E1E22", border:"1px solid #333", color:"#fff" }} required />
+          <input type="text" value={projectId} onChange={e => setProjectId(e.target.value)} placeholder="Project ID" style={{ width:"100%", boxSizing:"border-box", background:"#1E1E22", border:"1px solid #333", color:"#fff" }} required />
+          <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" style={{ width:"100%", boxSizing:"border-box", background:"#1E1E22", border:"1px solid #333", color:"#fff" }} required />
           {error && <div style={{ fontSize:12, color:"#F87171", padding:"8px 12px", background:"rgba(248,113,113,.1)", borderRadius:6 }}>{error}</div>}
-          {message && <div style={{ fontSize:12, color:"#A3E635", padding:"8px 12px", background:"rgba(163,230,53,.1)", borderRadius:6 }}>{message}</div>}
           <button type="submit" disabled={busy} className="btn" style={{ width:"100%", justifyContent:"center", background:"#fff", color:"#000", fontWeight:500, marginTop:8 }}>
-            {busy ? "Sending..." : "Send Magic Link"}
+            {busy ? "Authenticating..." : "Access Project"}
           </button>
         </form>
         <div style={{ marginTop:16, textAlign:"center" }}>

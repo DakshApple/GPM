@@ -3,22 +3,23 @@ import { Shield, ArrowRight, LogIn } from 'lucide-react';
 import { api, supabase } from '../services/db';
 
 export function AuthScreen({ onAuth }) {
-  const [loginType, setLoginType] = useState('member'); // 'member' or 'admin'
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault(); setError(""); setBusy(true);
     try {
-      if (!email.trim() || !password.trim()) {
-        throw new Error("Email and password are required.");
+      if (!username.trim() || !password.trim()) {
+        throw new Error("Username and password are required.");
       }
+
+      const authEmail = `${username.trim().toLowerCase()}@gpm.local`;
 
       // 1. Sign in with Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
+        email: authEmail,
         password: password.trim()
       });
       if (authError) throw authError;
@@ -113,7 +114,7 @@ export function AuthScreen({ onAuth }) {
           </div>
 
           <form onSubmit={submit} style={{ display:"flex", flexDirection:"column", gap:10 }}>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="email address" autoComplete="email" style={{ width:"100%", boxSizing:"border-box" }} />
+            <input type="text" value={username} onChange={e => setUsername(e.target.value)} required placeholder="username" autoComplete="username" style={{ width:"100%", boxSizing:"border-box" }} />
             <input type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="password" autoComplete="current-password" style={{ width:"100%", boxSizing:"border-box" }} />
             {error && <div style={{ fontSize:12, padding:"8px 12px", borderRadius:6, background:"rgba(248,113,113,.1)", color:"var(--red)" }}>{error}</div>}
             
